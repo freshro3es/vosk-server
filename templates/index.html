@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Speech to Text</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+</head>
+
+<body>
+    <div class="header">
+        <a class="header__logo" href="/" title="Rec &amp; Etu">
+            <img class="logo-img" src="https://rec-etu.com/images/joomlart/uber/logo/logo-header_spb.gif"
+                alt="Rec &amp; Etu">
+        </a>
+
+        <div class="header__nav">
+            <button class="nav__btn">WAV to text</button>
+            <button class="nav__btn">Speech to text</button>
+        </div>
+    </div>
+    <div class="content">
+        <div class="uploadForm">
+            <h1 style="margin: 20px 0;">Загрузите аудио файл для транскрибирования</h1>
+            <form id="uploadForm">
+                <div class="file-input-wrapper">
+                    <span class="custom-file-button">Выбрать файл</span>
+                    <input type="file" id="fileInput" name="file" accept="audio/*">
+                    <span class="file-name" id="fileName">Файл не выбран</span>
+                </div>
+                <button type="submit">Загрузить</button>
+            </form>
+        </div>
+        <div id="resultForm">
+            <h2>Результат транскрибирования</h2>
+            <div id="result"></div>
+            <button id="downloadBtn" style="display: none; align-self: end; margin-right: 30px;"
+                onclick="downloadText()">Скачать</button>
+        </div>
+    </div>
+
+    <script>
+
+        document.getElementById('fileInput').addEventListener('change', function (event) {
+            const fileName = event.target.files[0]?.name || 'No file chosen';
+            document.getElementById('fileName').textContent = fileName;
+        });
+
+        const socket = io('http://localhost:5000');
+
+        text = '';
+        socket.on('transcription_result', function (msg) {
+            const resultElement = document.getElementById('result');
+            if (msg.partial !== undefined) {
+                resultElement.textContent = text + msg.partial + '\n';
+                console.log(Date.now(), msg.partial);
+            }
+            if (msg.text !== undefined) {
+                text += " " + msg.text;
+                resultElement.textContent = text + '\n';
+                console.log(Date.now(), msg.text);
+            }
+        });
+
+        socket.on('transcription_finished', () => {
+            document.getElementById('downloadBtn').style.display = 'block';
+        });
+
+        document.getElementById('uploadForm').onsubmit = async function (event) {
+            event.preventDefault();
+
+            document.getElementById('downloadBtn').style.display = 'none';
+            document.getElementById('result').textContent = '';
+            text = '';
+
+            const fileInput = document.getElementById('fileInput');
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            const response = await fetch('http://localhost:5000/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (response.ok) {
+                document.getElementById('resultForm').classList.add('show');
+                console.log('File uploaded successfully');
+            } else {
+                console.error('Failed to upload file');
+            }
+        };
+
+        function downloadText() {
+            const textBlob = new Blob([text], { type: 'text/plain' });
+            const textURL = URL.createObjectURL(textBlob);
+            const link = document.createElement('a');
+            link.href = textURL;
+            link.download = 'transcription.txt';
+            link.click();
+            URL.revokeObjectURL(textURL);
+        }
+    </script>
+
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            background-image: URL("https://www.zucisystems.com/wp-content/uploads/2021/07/icon-internet-world-hands-businessman-network-technology-communication-scaled.jpg");
+        }
+
+        .header {
+            width: 100%;
+            height: 70px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            border: 1px solid dimgray;
+            background-color: white;
+        }
+
+        div.header img {
+            max-height: 52px;
+            max-width: 100%;
+            align-self: center;
+        }
+
+        button.nav__btn {
+            margin: 0;
+            padding: 20px;
+            height: 70px;
+            color: dimgray;
+            background-color: white;
+            border: 1px solid dimgray;
+        }
+
+        button {
+            padding: 5px;
+            margin: 5px;
+            color: white;
+            background-color: rgb(0,50,101);
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            font-size: medium;
+            border: 0px solid black;
+        }
+
+        .content {
+            width: 70%;
+            min-width: 700px;
+            height: 90vh;
+            text-wrap: wrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+        }
+
+        .uploadForm {
+            margin: 20px 0px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        #uploadForm {
+            width: 100%;
+            margin: 15px;
+            display: flex;
+            justify-content: space-around;
+        }
+
+        /* Скрыть оригинальный input */
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        /* Стилизация кастомной кнопки */
+        .custom-file-button {
+            padding: 5px;
+            margin: 5px;
+            color: white;
+            background-color: rgb(0,50,101);
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            font-size: medium;
+            border: 0px solid black;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        /* Стилизация для отображения имени файла */
+        .file-name {
+            margin-left: 10px;
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            font-size: medium;
+            color: black;
+        }
+
+        #fileInput {
+            padding: 5px;
+            margin: 5px;
+            color: white;
+            font-size: medium;
+            border: 0px solid black;
+            display: inline-block;
+            cursor: pointer;
+        }
+
+        /* Скрыть блок результата по умолчанию */
+        #resultForm {
+            display: none;
+        }
+
+        #resultForm.show {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            max-width: 90%;
+        }
+
+        #result {
+            margin: 10px;
+            padding: 10px;
+            border: 3px solid grey;
+        }
+    </style>
+</body>
+
+</html>
