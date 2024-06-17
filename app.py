@@ -19,8 +19,16 @@ socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 CORS(app)
 
 @app.route('/')
-def index():
-    return render_template('index.html')
+def home():
+    return render_template('home.html')
+
+@app.route('/wav-to-text')
+def wav_to_text():
+    return render_template('wav_to_text.html')
+
+@app.route('/voice-to-text')
+def voice_to_text():
+    return render_template('voice_to_text.html')
 
 @app.route('/upload', methods=['POST'])
 def upload():

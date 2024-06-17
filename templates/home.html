@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Speech to Text</title>
+</head>
+
+<body>
+    <div class="header">
+        <a class="header__logo" href="/" title="Rec &amp; Etu">
+            <img class="logo-img" src="https://rec-etu.com/images/joomlart/uber/logo/logo-header_spb.gif"
+                alt="Rec &amp; Etu">
+        </a>
+        <div class="header__nav">
+            <a href="http://localhost:5000/wav-to-text"><button class="nav__btn">WAV to text</button></a>
+            <a href="http://localhost:5000/voice-to-text"><button class="nav__btn">Speech to text</button></a>
+        </div>
+    </div>
+    <div class="content">
+        <h1>Главная страница</h1>
+    </div>
+
+    <script>
+
+    
+    </script>
+
+    <style>
+        * {
+            padding: 0;
+            margin: 0;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            background-image: URL("https://www.zucisystems.com/wp-content/uploads/2021/07/icon-internet-world-hands-businessman-network-technology-communication-scaled.jpg");
+        }
+
+        .header {
+            width: 100%;
+            height: 70px;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-around;
+            border: 1px solid dimgray;
+            background-color: white;
+        }
+
+        div.header img {
+            max-height: 52px;
+            max-width: 100%;
+            align-self: center;
+        }
+
+        button.nav__btn {
+            margin: 0;
+            padding: 20px;
+            height: 70px;
+            color: dimgray;
+            background-color: white;
+            border: 1px solid dimgray;
+        }
+
+        button {
+            padding: 5px;
+            margin: 5px;
+            color: white;
+            background-color: rgb(0,50,101);
+            font-family: "Helvetica Neue", Roboto, Helvetica, Arial, sans-serif;
+            font-size: medium;
+            border: 0px solid black;
+        }
+
+        .content {
+            width: 70%;
+            min-width: 700px;
+            height: 90vh;
+            text-wrap: wrap;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: white;
+        }
+    </style>
+</body>
+
+</html>
