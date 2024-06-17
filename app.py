@@ -55,6 +55,9 @@ def upload():
 
     return jsonify({"status": "Processing started"}), 200
 
+# TODO: Add route for transcribing voice to text and logic also. Use WebSockets
+# Paste code here
+
 def transcribe_file(file_path):
     async def transcribe():
         uri = "ws://localhost:2700"
