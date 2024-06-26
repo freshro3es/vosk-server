@@ -52,12 +52,12 @@
             const resultElement = document.getElementById('result');
             if (msg.partial !== undefined) {
                 resultElement.textContent = text + msg.partial + '\n';
-                console.log(Date.now(), msg.partial);
+                console.log(Date.now(), "conslogpartial", msg.partial);
             }
             if (msg.text !== undefined) {
                 text += " " + msg.text;
                 resultElement.textContent = text + '\n';
-                console.log(Date.now(), msg.text);
+                console.log(Date.now(),"conslogtext", msg.text);
             }
         });
 
