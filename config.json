@@ -1,0 +1,4 @@
+{
+    "serverUrl": "http://localhost:5000",
+    "voskUrl": "ws://localhost:2700"
+}

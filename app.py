@@ -13,10 +13,16 @@ import websockets
 
 eventlet.monkey_patch()
 
+# Загрузка конфигурации из config.json
+with open('config.json') as config_file:
+    config = json.load(config_file)
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'secret!'
 socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 CORS(app)
+
+VOSK_URI = config['voskUrl']
 
 @app.route('/')
 def home():
@@ -33,6 +39,11 @@ def voice_to_text():
 @app.route('/data-conversion-processor.js')
 def data_conversion_processor():
     return send_from_directory('templates', 'data-conversion-processor.js')
+
+# Returns Uri configuration to frontend
+@app.route('/config')
+def get_config():
+    return config
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -64,7 +75,7 @@ def upload():
 def handle_audio_data(audio_data):
     app.logger.info('Received audio data')
     async def transcribe():
-        uri = "ws://192.168.250.1:2700"
+        uri = VOSK_URI
         async with websockets.connect(uri) as websocket:
             await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
 
@@ -94,11 +105,11 @@ def handle_disconnect():
 
 def transcribe_file(file_path):
     async def transcribe():
-        uri = "ws://192.168.250.1:2700"
+        uri = VOSK_URI
         async with websockets.connect(uri) as websocket:
             wf = wave.open(file_path, "rb")
             await websocket.send('{ "config" : { "sample_rate" : %d } }' % (wf.getframerate()))
-            buffer_size = int(wf.getframerate() * 1.2)  # 0.2 seconds of audio
+            buffer_size = int(wf.getframerate() * 1.2)  # 1.2 seconds of audio
 
             while True:
                 data = wf.readframes(buffer_size)
@@ -107,13 +118,13 @@ def transcribe_file(file_path):
 
                 await websocket.send(data)
                 result = await websocket.recv()
-                socketio.emit('transcription_result', json.loads(result))
+                socketio.emit('message', json.loads(result))
                 # print('result: ', result)
                 app.logger.info(f"Transcription result: {result}")  
 
             await websocket.send('{"eof" : 1}')
             final_result = await websocket.recv()
-            socketio.emit('transcription_result', json.loads(final_result))
+            socketio.emit('message', json.loads(final_result))
             # print('final_result: ', final_result)
             app.logger.info(f"Final transcription result: {final_result}")  # app.logger final transcription result
             
