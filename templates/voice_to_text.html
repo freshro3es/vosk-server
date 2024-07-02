@@ -6,6 +6,9 @@
     <title>Speech to Text</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/websocket_handler.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/speech_to_text.js') }}"></script>
 </head>
 
 <body>
@@ -22,106 +25,15 @@
         <h1>Голос в текст</h1>
         <div>Recording time: <span id="recording-time">0:00</span></div>
         <form>
-            <button type="button" id="start" onclick="startRecording()">Start Recording</button>
-            <button type="button" id="stop" onclick="stopRecording()">Stop Recording</button>
+            <button type="button" id="start">Start Recording</button>
+            <button type="button" id="stop">Stop Recording</button>
         </form>
         <div id="resultForm">
             <h2>Результат транскрибирования</h2>
             <div id="result"></div>
-            <button id="downloadBtn" style="display: none; align-self: end; margin-right: 30px;" onclick="downloadText()">Скачать</button>
+            <button id="downloadBtn" style="display: none; align-self: end; margin-right: 30px;">Скачать</button>
         </div>
     </div>
-
-    <script>
-        const socket = io.connect('http://localhost:5000');
-        let context;
-        let source;
-        let processor;
-        let streamLocal;
-        let recordingTimer;
-        let startTime;
-        const sampleRate = 16000;
-
-        socket.on('transcription_result', function(data) {
-            if (data && data.result) {
-                document.getElementById('result').innerHTML += data.result + ' ';
-            } else {
-                console.log('Received transcription result with no data:', data);
-            }
-        });
-
-        socket.on('transcription_finished', function() {
-            document.getElementById('result').innerHTML += "<br><b>Transcription finished.</b><br>";
-        });
-
-        socket.on('recording_time', function(data) {
-            document.getElementById('recording-time').innerText = data.time;
-        });
-
-        async function startRecording() {
-            try {
-                await navigator.mediaDevices.getUserMedia({ audio: true })
-                    .then(stream => handleSuccess(stream))
-                    .catch(err => console.error('Error accessing microphone:', err));
-            } catch (err) {
-                console.error('Error accessing microphone:', err);
-            }
-        }
-
-        function handleSuccess(stream) {
-            streamLocal = stream;
-            context = new AudioContext({ sampleRate: sampleRate });
-
-            context.audioWorklet.addModule('data-conversion-processor.js').then(() => {
-                processor = new AudioWorkletNode(context, 'data-conversion-processor', {
-                    channelCount: 1,
-                    numberOfInputs: 1,
-                    numberOfOutputs: 1
-                });
-
-                source = context.createMediaStreamSource(stream);
-                source.connect(processor);
-                processor.connect(context.destination);
-
-                processor.port.onmessage = event => socket.emit('audio_data', event.data);
-                processor.port.start();
-                startTime = Date.now();
-                startTimer();
-                console.log('Recording started');
-            }).catch(err => {
-                console.error('Error adding audio worklet module:', err);
-            });
-        }
-
-        function stopRecording() {
-            if (processor && context) {
-                processor.disconnect();
-                context.close();
-                if (streamLocal && streamLocal.active) {
-                    streamLocal.getTracks()[0].stop();
-                }
-                clearInterval(recordingTimer);
-                socket.emit('stop_recording');
-                console.log('Recording stopped by user');
-            }
-        }
-
-        function startTimer() {
-            recordingTimer = setInterval(() => {
-                const elapsedTime = Date.now() - startTime;
-                const formattedTime = formatTime(elapsedTime);
-                document.getElementById('recording-time').innerText = formattedTime;
-            }, 1000);
-        }
-
-        function formatTime(milliseconds) {
-            const totalSeconds = Math.floor(milliseconds / 1000);
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return minutes.toString().padStart(2, '0') + ':' + seconds.toString().padStart(2, '0');
-        }
-    </script>
-      
 </body>
 
 </html>

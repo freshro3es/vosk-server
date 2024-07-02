@@ -1,15 +1,15 @@
 import eventlet
 eventlet.monkey_patch()
 
-from flask import Flask, request, jsonify, render_template, send_from_directory
-from flask_socketio import SocketIO
-from flask_cors import CORS
-from werkzeug.utils import secure_filename
 import os
 import json
 import wave
 import asyncio
 import websockets
+from flask import Flask, request, jsonify, render_template, send_from_directory
+from flask_socketio import SocketIO, emit, disconnect
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
 eventlet.monkey_patch()
 
@@ -23,6 +23,9 @@ socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 CORS(app)
 
 VOSK_URI = config['voskUrl']
+
+# Хранение соответствия соединений WebSocket и идентификаторов клиентов
+client_connections = {}
 
 @app.route('/')
 def home():
@@ -40,7 +43,7 @@ def voice_to_text():
 def data_conversion_processor():
     return send_from_directory('templates', 'data-conversion-processor.js')
 
-# Returns Uri configuration to frontend
+# Возвращает конфигурацию URI на frontend
 @app.route('/config')
 def get_config():
     return config
@@ -66,42 +69,59 @@ def upload():
         app.logger.error(f"Failed to save file: {file_path}")
         return jsonify({"error": "Failed to save file"}), 500
 
+    # Запуск асинхронной задачи для транскрибации файла
     socketio.start_background_task(target=transcribe_file, file_path=file_path)
 
     return jsonify({"status": "Processing started"}), 200
 
-# TODO: Add route for transcribing voice to text and logic also. Use WebSockets
+# Обработчик WebSocket для приема аудио данных
 @socketio.on('audio_data')
-def handle_audio_data(audio_data):
-    app.logger.info('Received audio data')
-    async def transcribe():
-        uri = VOSK_URI
-        async with websockets.connect(uri) as websocket:
-            await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
+def handle_audio_data(message):
+    client_id = message.get('client_id')
+    if client_id in client_connections:
+        async def transcribe():
+            uri = VOSK_URI
+            async with websockets.connect(uri) as websocket:
+                await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
+                await websocket.send(message['audio_data'])
+                result = await websocket.recv()
+                try:
+                    result_json = json.loads(result)
+                    send_message('transcription_result', {'result': result_json.get('partial', '')}, room=client_connections[client_id])
+                    app.logger.info(f"Transcription result: {result_json}")
+                except json.JSONDecodeError:
+                    app.logger.error(f"Failed to decode JSON: {result}")
 
-            await websocket.send(audio_data)
-            result = await websocket.recv()
-            try:
-                result_json = json.loads(result)
-                socketio.emit('transcription_result', {'result': result_json.get('partial', '')})
-                app.logger.info(f"Transcription result: {result_json}")
-            except json.JSONDecodeError:
-                app.logger.error(f"Failed to decode JSON: {result}")
-
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(transcribe())
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(transcribe())
 
 @socketio.on('stop_recording')
 def handle_stop_recording():
+    # Добавьте здесь логику остановки записи или другие действия при необходимости
     app.logger.info('Received stop recording signal')
-    # Here we can add logic to stop processing audio or other actions if necessary
+
+@socketio.on('connect')
+def handle_connect():
+    client_id = request.sid
+    client_connections[client_id] = request.sid
+    app.logger.info(f"Client connected: {client_id}")
 
 @socketio.on('disconnect')
 def handle_disconnect():
-    app.logger.info('Client disconnected')
-  
-
+    client_id = request.sid
+    if client_id in client_connections:
+        del client_connections[client_id]
+        app.logger.info(f"Client disconnected: {client_id}")
+    disconnect()
+    
+    
+# Функция отправки сообщения по сокету
+def send_message(event, data=None, room=None):
+    if room:
+        socketio.emit(event, data, room=room)
+    else:
+        socketio.emit(event, data)
 
 def transcribe_file(file_path):
     async def transcribe():
@@ -118,19 +138,17 @@ def transcribe_file(file_path):
 
                 await websocket.send(data)
                 result = await websocket.recv()
-                socketio.emit('message', json.loads(result))
-                # print('result: ', result)
-                app.logger.info(f"Transcription result: {result}")  
+                send_message('message', json.loads(result))
+                app.logger.info(f"Transcription result: {result}")
 
             await websocket.send('{"eof" : 1}')
             final_result = await websocket.recv()
-            socketio.emit('message', json.loads(final_result))
-            # print('final_result: ', final_result)
-            app.logger.info(f"Final transcription result: {final_result}")  # app.logger final transcription result
-            
-            # Emit a signal that the processing is finished
-            socketio.emit('transcription_finished')
-            app.logger.info("Transcription finished") 
+            send_message('message', json.loads(final_result))
+            app.logger.info(f"Final transcription result: {final_result}")
+
+            # Сигнал о завершении транскрипции
+            send_message('transcription_finished')
+            app.logger.info("Transcription finished")
 
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)

@@ -48,3 +48,4 @@ class WebSocketHandler {
 }
 
 export default WebSocketHandler;
+//window.WebSocketHandler = WebSocketHandler;
