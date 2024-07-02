@@ -39,10 +39,6 @@ def wav_to_text():
 def voice_to_text():
     return render_template('voice_to_text.html')
 
-@app.route('/data-conversion-processor.js')
-def data_conversion_processor():
-    return send_from_directory('templates', 'data-conversion-processor.js')
-
 # Возвращает конфигурацию URI на frontend
 @app.route('/config')
 def get_config():
