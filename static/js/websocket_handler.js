@@ -42,6 +42,14 @@ class WebSocketHandler {
         }
     }
 
+    sendAudioData(message) {
+        if (this.socket.connected) {
+            this.socket.emit('audio_data', message);
+        } else {
+            console.error("WebSocket is not open.");
+        }
+    }
+
     close() {
         this.socket.disconnect();
     }

@@ -73,21 +73,33 @@ def upload():
 # Обработчик WebSocket для приема аудио данных
 @socketio.on('audio_data')
 def handle_audio_data(message):
-    client_id = message.get('client_id')
+    client_id = request.sid
+    app.logger.info(f"Server listens client {client_id}")
     if client_id in client_connections:
         async def transcribe():
+            app.logger.info("Transcription started")
             uri = VOSK_URI
             async with websockets.connect(uri) as websocket:
+                app.logger.info("Connected to VOSK")
                 await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
                 await websocket.send(message['audio_data'])
                 result = await websocket.recv()
                 try:
                     result_json = json.loads(result)
-                    send_message('transcription_result', {'result': result_json.get('partial', '')}, room=client_connections[client_id])
+                    send_message('message', {'result': result_json.get('partial', '')}, room=client_connections[client_id])
                     app.logger.info(f"Transcription result: {result_json}")
                 except json.JSONDecodeError:
                     app.logger.error(f"Failed to decode JSON: {result}")
 
+                await websocket.send('{"eof" : 1}')
+                final_result = await websocket.recv()
+                try:
+                    result_json = json.loads(final_result)
+                    send_message('message', {'result': result_json.get('text', '')}, room=client_connections[client_id])
+                    app.logger.info(f"Final transcription result: {final_result}")
+                except json.JSONDecodeError:
+                    app.logger.error(f"Failed to decode JSON: {final_result}")
+                
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(transcribe())

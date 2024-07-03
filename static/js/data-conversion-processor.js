@@ -31,7 +31,7 @@ class DataConversionAudioProcessor extends AudioWorkletProcessor {
 
         if (!inputData) return;
 
-        for (let index = 0; index < inputData.length; index++) {
+        for (let index = inputData.length; index > 0; index--) {
             this._buffer[this._bytesWritten++] = 32767 * Math.min(1, inputData[index]);
         }
 
@@ -41,7 +41,7 @@ class DataConversionAudioProcessor extends AudioWorkletProcessor {
     }
 
     flush() {
-        console.log('Flushing buffer with', this._bytesWritten, 'bytes'); // Логируем количество байт в буфере при сбросе
+        // console.log('Flushing buffer with', this._bytesWritten, 'bytes'); // Логируем количество байт в буфере при сбросе
         this.port.postMessage(
             this._bytesWritten < this.bufferSize
                 ? this._buffer.slice(0, this._bytesWritten)

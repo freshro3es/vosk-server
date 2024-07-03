@@ -20,14 +20,20 @@ document.addEventListener("DOMContentLoaded", async () => {
     const sampleRate = 16000;
 
     function handleMessage(msg) {
-        if (msg.transcription_result) {
-            document.getElementById('result').innerHTML += msg.transcription_result + ' ';
+        if (msg.result) {
+            // TODO: fix result display
+            // Вот тут не получается отображать в блоке результаты
+            requestAnimationFrame(() => {
+                document.getElementById('result').innerHTML += msg.result + ' ';
+            });
         } else if (msg.transcription_finished) {
-            document.getElementById('result').innerHTML += "<br><b>Transcription finished.</b><br>";
+            requestAnimationFrame(() => {
+                document.getElementById('result').innerHTML += "<br><b>Transcription finished.</b><br>";
+            });
         } else if (msg.recording_time) {
             document.getElementById('recording-time').innerText = msg.recording_time;
         }
-    }
+    }    
 
     const socket = new WebSocketHandler(wsUrl, handleMessage);
 
@@ -37,7 +43,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     async function startRecording() {
         try {
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            const stream = await navigator.mediaDevices.getUserMedia({audio: {
+                echoCancellation: true,
+                noiseSuppression: true,
+                channelCount: 1,
+                sampleRate
+            }});
             handleSuccess(stream);
         } catch (err) {
             console.error('Error accessing microphone:', err);
@@ -60,8 +71,8 @@ document.addEventListener("DOMContentLoaded", async () => {
             processor.connect(context.destination);
 
             processor.port.onmessage = event => {
-                console.log('Audio data received from processor:', event.data);
-                socket.send({ audio_data: event.data });
+                // console.log('Audio data received from processor:', event.data);
+                socket.sendAudioData({ audio_data: event.data});
             };
             
             processor.port.start();
