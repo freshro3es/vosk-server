@@ -19,21 +19,36 @@ document.addEventListener("DOMContentLoaded", async () => {
     let startTime;
     const sampleRate = 16000;
 
-    function handleMessage(msg) {
-        if (msg.result) {
-            // TODO: fix result display
-            // Вот тут не получается отображать в блоке результаты
-            requestAnimationFrame(() => {
-                document.getElementById('result').innerHTML += msg.result + ' ';
-            });
-        } else if (msg.transcription_finished) {
-            requestAnimationFrame(() => {
-                document.getElementById('result').innerHTML += "<br><b>Transcription finished.</b><br>";
-            });
-        } else if (msg.recording_time) {
-            document.getElementById('recording-time').innerText = msg.recording_time;
+    // function handleMessage(msg) {
+    //     if (msg.result) {
+    //         // TODO: fix result display
+    //         // Вот тут не получается отображать в блоке результаты
+    //         requestAnimationFrame(() => {
+    //             document.getElementById('result').innerHTML += msg.result + ' ';
+    //         });
+    //     } else if (msg.transcription_finished) {
+    //         requestAnimationFrame(() => {
+    //             document.getElementById('result').innerHTML += "<br><b>Transcription finished.</b><br>";
+    //         });
+    //     } else if (msg.recording_time) {
+    //         document.getElementById('recording-time').innerText = msg.recording_time;
+    //     }
+    // }  
+    
+    let text = '';
+    
+    const handleMessage = (msg) => {
+        const resultElement = document.getElementById('result');
+        if (msg.partial !== undefined) {
+            resultElement.textContent = text + msg.partial + '\n';
+            console.log(Date.now(), "partial", msg.partial);
         }
-    }    
+        if (msg.text !== undefined) {
+            text += " " + msg.text;
+            resultElement.textContent = text + '\n';
+            console.log(Date.now(), "text", msg.text);
+        }
+    };
 
     const socket = new WebSocketHandler(wsUrl, handleMessage);
 
@@ -49,6 +64,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 channelCount: 1,
                 sampleRate
             }});
+            socket.startRecording();
             handleSuccess(stream);
         } catch (err) {
             console.error('Error accessing microphone:', err);
@@ -92,7 +108,7 @@ document.addEventListener("DOMContentLoaded", async () => {
                 streamLocal.getTracks()[0].stop();
             }
             clearInterval(recordingTimer);
-            socket.send({ stop_recording: true });
+            socket.stopRecording();
             console.log('Recording stopped by user');
         }
     }

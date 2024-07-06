@@ -127,9 +127,9 @@
  }
 
  /* Скрыть блок результата по умолчанию */
- #resultForm {
+ /* #resultForm {
      display: none;
- }
+ } */
 
  #resultForm.show {
      display: flex;

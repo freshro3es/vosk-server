@@ -42,6 +42,24 @@ class WebSocketHandler {
         }
     }
 
+    startRecording() {
+        if (this.socket.connected) {
+            this.socket.emit('start_recording');
+        } else {
+            console.error("WebSocket is not open.");
+        }
+    }
+
+
+    stopRecording() {
+        if (this.socket.connected) {
+            this.socket.emit('stop_recording');
+        } else {
+            console.error("WebSocket is not open.");
+        }
+    }
+
+
     sendAudioData(message) {
         if (this.socket.connected) {
             this.socket.emit('audio_data', message);

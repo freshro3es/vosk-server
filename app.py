@@ -70,39 +70,121 @@ def upload():
 
     return jsonify({"status": "Processing started"}), 200
 
+
+# Очередь для хранения аудио данных
+audio_queues = {}
+
+# Обработчик WebSocket для начала передачи аудио данных
+@socketio.on('start_recording')
+def handle_start_recording():
+    app.logger.info(f"Recording started")
+    client_id = request.sid
+    audio_queue = asyncio.Queue()
+    audio_queues[client_id] = audio_queue
+
+    # Запуск фоновой задачи для обработки аудио данных
+    socketio.start_background_task(target=transcribe_audio_stream, client_id=client_id, audio_queue=audio_queue)
+
 # Обработчик WebSocket для приема аудио данных
 @socketio.on('audio_data')
-def handle_audio_data(message):
+def handle_audio_data(data):
+    #app.logger.info(f"Audio data recieved from {request.sid}")
     client_id = request.sid
-    app.logger.info(f"Server listens client {client_id}")
-    if client_id in client_connections:
-        async def transcribe():
-            app.logger.info("Transcription started")
-            uri = VOSK_URI
-            async with websockets.connect(uri) as websocket:
-                app.logger.info("Connected to VOSK")
-                await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
-                await websocket.send(message['audio_data'])
+    if client_id in audio_queues:
+        audio_data = data.get('audio_data')
+        if audio_data:
+            audio_queues[client_id].put_nowait(audio_data)
+
+# Обработчик WebSocket для остановки передачи аудио данных
+@socketio.on('stop_recording')
+def handle_stop_recording():
+    app.logger.info(f"Recording stopped")
+    client_id = request.sid
+    if client_id in audio_queues:
+        audio_queues[client_id].put_nowait(None)  # Используем None как сигнал окончания записи
+
+
+# Функция для обработки аудио потока
+def transcribe_audio_stream(client_id, audio_queue):
+    async def transcribe():
+        app.logger.info(f"Audio stream started for client {client_id}")
+        uri = VOSK_URI
+        async with websockets.connect(uri) as websocket:
+            app.logger.info(f"Connected to websocket of vosk")
+            await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
+            
+            while True:
+                data = await audio_queue.get()
+                app.logger.info(f"Got data from audio queue")
+                if data is None:
+                    # Здесь освободи ивент луп
+                    break  # Завершаем цикл, если получили сигнал окончания записи
+                
+                await websocket.send(data)
                 result = await websocket.recv()
+                
                 try:
                     result_json = json.loads(result)
-                    send_message('message', {'result': result_json.get('partial', '')}, room=client_connections[client_id])
+                    #send_message('message', {'result': result_json.get('partial', '')}, room=client_id)
+                    send_message('message', result_json, room=client_id)
                     app.logger.info(f"Transcription result: {result_json}")
                 except json.JSONDecodeError:
                     app.logger.error(f"Failed to decode JSON: {result}")
 
-                await websocket.send('{"eof" : 1}')
-                final_result = await websocket.recv()
-                try:
-                    result_json = json.loads(final_result)
-                    send_message('message', {'result': result_json.get('text', '')}, room=client_connections[client_id])
-                    app.logger.info(f"Final transcription result: {final_result}")
-                except json.JSONDecodeError:
-                    app.logger.error(f"Failed to decode JSON: {final_result}")
+            await websocket.send('{"eof" : 1}')
+            final_result = await websocket.recv()
+            try:
+                result_json = json.loads(final_result)
+                #send_message('transcription_result', {'result': result_json.get('text', '')}, room=client_id)
+                send_message('message', result_json, room=client_id)
+                app.logger.info(f"Final transcription result: {final_result}")
+            except json.JSONDecodeError:
+                app.logger.error(f"Failed to decode JSON: {final_result}")
+
+    # loop = asyncio.new_event_loop()
+    # asyncio.set_event_loop(loop)
+    # loop.run_until_complete(transcribe())
+    asyncio.run(transcribe())
+    
+
+
+
+
+# # Обработчик WebSocket для приема аудио данных
+# @socketio.on('audio_data')
+# def handle_audio_data(message):
+#     client_id = request.sid
+#     app.logger.info(f"Server listens client {client_id}")
+#     if client_id in client_connections:
+#         async def transcribe():
+#             app.logger.info("Transcription started")
+#             uri = VOSK_URI
+#             async with websockets.connect(uri) as websocket:
+#                 app.logger.info("Connected to VOSK")
+#                 await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
+#                 await websocket.send(message['audio_data'])
+#                 result = await websocket.recv()
+#                 try:
+#                     result_json = json.loads(result)
+#                     send_message('message', {'result': result_json.get('partial', '')}, room=client_connections[client_id])
+#                     app.logger.info(f"Transcription result: {result_json}")
+#                 except json.JSONDecodeError:
+#                     app.logger.error(f"Failed to decode JSON: {result}")
+
+#                 await websocket.send('{"eof" : 1}')
+#                 final_result = await websocket.recv()
+#                 try:
+#                     result_json = json.loads(final_result)
+#                     send_message('message', {'result': result_json.get('text', '')}, room=client_connections[client_id])
+#                     app.logger.info(f"Final transcription result: {final_result}")
+#                 except json.JSONDecodeError:
+#                     app.logger.error(f"Failed to decode JSON: {final_result}")
                 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(transcribe())
+#         loop = asyncio.new_event_loop()
+#         asyncio.set_event_loop(loop)
+#         loop.run_until_complete(transcribe())
+        
+# Start_btn => circle on server => listen 'audio_data' => Stop_btn => end circle
 
 @socketio.on('stop_recording')
 def handle_stop_recording():
@@ -158,9 +240,10 @@ def transcribe_file(file_path):
             send_message('transcription_finished')
             app.logger.info("Transcription finished")
 
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(transcribe())
+    # loop = asyncio.new_event_loop()
+    # asyncio.set_event_loop(loop)
+    # loop.run_until_complete(transcribe())
+    asyncio.run(transcribe())
     os.remove(file_path)
 
 if __name__ == '__main__':

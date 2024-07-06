@@ -1,4 +1,4 @@
 {
-    "serverUrl": "http://192.168.22.164:5000",
-    "voskUrl": "ws://192.168.250.1:2700"
+    "serverUrl": "http://localhost:5000",
+    "voskUrl": "ws://localhost:2700"
 }
