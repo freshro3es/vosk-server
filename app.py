@@ -1,6 +1,8 @@
 import eventlet
 eventlet.monkey_patch()
-
+from eventlet.queue import Queue
+import wave
+import time
 import os
 import json
 import wave
@@ -10,8 +12,8 @@ from flask import Flask, request, jsonify, render_template, send_from_directory
 from flask_socketio import SocketIO, emit, disconnect
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-
-eventlet.monkey_patch()
+from werkzeug.utils import secure_filename
+from threading import Lock
 
 # Загрузка конфигурации из config.json
 with open('config.json') as config_file:
@@ -23,6 +25,9 @@ socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
 CORS(app)
 
 VOSK_URI = config['voskUrl']
+RECORDS_DIR = 'records'
+
+os.makedirs(RECORDS_DIR, exist_ok=True)
 
 # Хранение соответствия соединений WebSocket и идентификаторов клиентов
 client_connections = {}
@@ -73,14 +78,29 @@ def upload():
 
 # Очередь для хранения аудио данных
 audio_queues = {}
+# Для файлов
+audio_files = {}
+audio_files_lock = Lock()
 
 # Обработчик WebSocket для начала передачи аудио данных
 @socketio.on('start_recording')
 def handle_start_recording():
     app.logger.info(f"Recording started")
     client_id = request.sid
-    audio_queue = asyncio.Queue()
+    audio_queue = Queue()
     audio_queues[client_id] = audio_queue
+
+    # Создаем файл для записи аудио данных в формате WAV
+    timestamp = int(time.time())
+    audio_file_path = os.path.join(RECORDS_DIR, f"{client_id}_{timestamp}.wav")
+    audio_file = wave.open(audio_file_path, 'wb')
+    audio_file.setnchannels(1)  # Mono
+    audio_file.setsampwidth(2)  # 16bit
+    audio_file.setframerate(16000)  # 16kHz
+    
+    with audio_files_lock:
+        audio_files[client_id] = audio_file
+        app.logger.info(f"Client {client_id} created a file. Audio file path: {audio_file_path}")
 
     # Запуск фоновой задачи для обработки аудио данных
     socketio.start_background_task(target=transcribe_audio_stream, client_id=client_id, audio_queue=audio_queue)
@@ -112,38 +132,50 @@ def transcribe_audio_stream(client_id, audio_queue):
         async with websockets.connect(uri) as websocket:
             app.logger.info(f"Connected to websocket of vosk")
             await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
-            
+            app.logger.info(f"client_id is {client_id}")
+
+            with audio_files_lock:
+                if client_id not in audio_files:
+                    app.logger.error(f"Audio file for client {client_id} not found.")
+                    app.logger.error(f"Dict {audio_files}")
+                    return
+            audio_file = audio_files[client_id]
+                
             while True:
-                data = await audio_queue.get()
+                data = audio_queue.get()
                 app.logger.info(f"Got data from audio queue")
-                if data is None:
-                    # Здесь освободи ивент луп
+                if data is None and audio_queue.empty(): # Наверное, если добавить И на очередь, то ок?
                     break  # Завершаем цикл, если получили сигнал окончания записи
                 
-                await websocket.send(data)
+                if data:
+                    audio_file.writeframes(data)
+                    await websocket.send(data)
+                
                 result = await websocket.recv()
                 
                 try:
                     result_json = json.loads(result)
-                    #send_message('message', {'result': result_json.get('partial', '')}, room=client_id)
                     send_message('message', result_json, room=client_id)
                     app.logger.info(f"Transcription result: {result_json}")
                 except json.JSONDecodeError:
                     app.logger.error(f"Failed to decode JSON: {result}")
 
             await websocket.send('{"eof" : 1}')
-            final_result = await websocket.recv()
-            try:
-                result_json = json.loads(final_result)
-                #send_message('transcription_result', {'result': result_json.get('text', '')}, room=client_id)
-                send_message('message', result_json, room=client_id)
-                app.logger.info(f"Final transcription result: {final_result}")
-            except json.JSONDecodeError:
-                app.logger.error(f"Failed to decode JSON: {final_result}")
+            audio_file.close()
+            with audio_files_lock:
+                del audio_files[client_id]
+            # final_result = await websocket.recv()
+            # try:
+            #     result_json = json.loads(final_result)
+            #     #send_message('transcription_result', {'result': result_json.get('text', '')}, room=client_id)
+            #     send_message('message', result_json, room=client_id)
+            #     app.logger.info(f"Final transcription result: {final_result}")
+            # except json.JSONDecodeError:
+            #     app.logger.error(f"Failed to decode JSON: {final_result}")
 
-    # loop = asyncio.new_event_loop()
-    # asyncio.set_event_loop(loop)
-    # loop.run_until_complete(transcribe())
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(transcribe())
     asyncio.run(transcribe())
     
 
@@ -186,10 +218,10 @@ def transcribe_audio_stream(client_id, audio_queue):
         
 # Start_btn => circle on server => listen 'audio_data' => Stop_btn => end circle
 
-@socketio.on('stop_recording')
-def handle_stop_recording():
-    # Добавьте здесь логику остановки записи или другие действия при необходимости
-    app.logger.info('Received stop recording signal')
+# @socketio.on('stop_recording')
+# def handle_stop_recording():
+#     # Добавьте здесь логику остановки записи или другие действия при необходимости
+#     app.logger.info('Received stop recording signal')
 
 @socketio.on('connect')
 def handle_connect():
@@ -213,6 +245,7 @@ def send_message(event, data=None, room=None):
     else:
         socketio.emit(event, data)
 
+# Если пустые файлы 
 def transcribe_file(file_path):
     async def transcribe():
         uri = VOSK_URI
@@ -228,11 +261,13 @@ def transcribe_file(file_path):
 
                 await websocket.send(data)
                 result = await websocket.recv()
+                # TODO: добавить room
                 send_message('message', json.loads(result))
                 app.logger.info(f"Transcription result: {result}")
 
             await websocket.send('{"eof" : 1}')
             final_result = await websocket.recv()
+            # TODO: добавить room
             send_message('message', json.loads(final_result))
             app.logger.info(f"Final transcription result: {final_result}")
 
