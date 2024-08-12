@@ -1,0 +1,6 @@
+{
+    "serverUrl": "http://localhost:5000",
+    "voskUrl": "ws://localhost:2700",
+    "NICServerUrl": "http://192.168.22.164:5000",
+    "NICVoskUrl": "ws://192.168.250.1:2700"
+}

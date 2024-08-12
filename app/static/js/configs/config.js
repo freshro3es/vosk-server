@@ -1,5 +1,5 @@
 async function loadConfig() {
-    const configResponse = await fetch('/config');
+    const configResponse = await fetch('/static/config.json');
     const config = await configResponse.json();
     return config;
 }

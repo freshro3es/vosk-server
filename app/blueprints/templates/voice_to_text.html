@@ -6,8 +6,8 @@
     <title>Speech to Text</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
-    <script type="module" src="{{ url_for('static', filename='js/websocket_handler.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/configs/config.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='js/modules/webSocketHandler.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/speech_to_text.js') }}"></script>
 </head>
 
@@ -23,10 +23,11 @@
     </div>
     <div class="content">
         <h1>Голос в текст</h1>
-        <div>Recording time: <span id="recording-time">0:00</span></div>
+        <div>Время записи: <span id="recording-time">0:00</span></div>
         <form>
             <button type="button" id="start">Start Recording</button>
             <button type="button" id="stop">Stop Recording</button>
+            <button type="button" id="record">Начать запись</button>
         </form>
         <div id="resultForm">
             <h2>Результат транскрибирования</h2>
