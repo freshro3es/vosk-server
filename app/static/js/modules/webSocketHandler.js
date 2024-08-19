@@ -42,6 +42,14 @@ class WebSocketHandler {
         }
     }
 
+    sendEvent(event, data) {
+        if (this.socket.connected) {
+            this.socket.emit(event, data);
+        } else {
+            console.error("WebSocket is not open.");
+        }
+    }
+
     startRecording() {
         if (this.socket.connected) {
             this.socket.emit('start_recording');

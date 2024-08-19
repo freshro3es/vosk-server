@@ -8,6 +8,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     const wsUrl = window.serverUrl;
     const wsHandler = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
+    let task_id;
+
     const changeInputContent = (event) => {
         const fileName = event.target.files[0]?.name || 'No file chosen';
         document.getElementById('fileName').textContent = fileName;
@@ -36,6 +38,13 @@ document.addEventListener("DOMContentLoaded", async () => {
         if (response.ok) {
             document.getElementById('resultForm').classList.add('show');
             console.log('File uploaded successfully');
+
+            // Working with response
+            const data = await response.json();
+            task_id = data.task_id;
+            console.log(task_id);
+            wsHandler.sendEvent('listen_task', {task_id:task_id})
+            
         } else {
             console.error('Failed to upload file');
         }

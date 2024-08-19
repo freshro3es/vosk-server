@@ -6,11 +6,17 @@ import json
 import wave
 import asyncio
 import websockets
+import uuid
 from app.extensions import socketio
 from app.config import Config
 from app.clients import Clients
 
+from app.data.task_manager import TaskManager
+from app.data.wav_task import WAVTask
+
 wav_bp = Blueprint('wav_bp', __name__, template_folder="templates")
+
+task_manager = TaskManager()
 
 @wav_bp.route('/wav-to-text')
 def wav_to_text():
@@ -37,52 +43,21 @@ def upload():
         current_app.logger.error(f"Failed to save file: {file_path}")
         return jsonify({"error": "Failed to save file"}), 500
 
-    # Запуск асинхронной задачи для транскрибации файла
-    client_id = session.get('client_id')  # Извлекаем client_id из сессии
-    if (client_id is None):
-        logging.warning(f"Client ID is {client_id}, something went wrong")
-        return jsonify({"error": "Failed to identify the client"}), 500
-    logging.info(f"started work on WAV file {filename} of client {client_id}")
+    task_id = str(uuid.uuid4())
     
-    socketio.start_background_task(target=transcribe_file, file_path=file_path, client_id=client_id)
+    task = WAVTask(file_path, filename)
+    task_manager.add_wav_task(task)
+
+    # Отправляем task_id клиенту
+    return jsonify({"task_id": task.task_id}), 200  
     
-    return jsonify({"status": "Processing started"}), 200
 
-# def transcribe_file(file_path):
-#     async def transcribe():
-#         uri = Config.VOSK_URI
-#         async with websockets.connect(uri) as websocket:
-#             wf = wave.open(file_path, "rb")
-#             await websocket.send('{ "config" : { "sample_rate" : %d } }' % (wf.getframerate()))
-#             buffer_size = int(wf.getframerate() * 1.2)
-
-#             while True:
-#                 data = wf.readframes(buffer_size)
-#                 if len(data) == 0:
-#                     break
-
-#                 await websocket.send(data)
-#                 result = await websocket.recv()
-#                 send_message('message', json.loads(result))
-#                 logging.info(f"Transcription result: {result}")
-            
-#             await websocket.send('{"eof" : 1}')
-#             final_result = await websocket.recv()
-#             send_message('message', json.loads(final_result))
-#             logging.info(f"Final transcription result: {final_result}")
-            
-#             send_message('transcription_finished')
-#             logging.info("Transcription finished")
-    
-#     asyncio.run(transcribe())
-#     # loop.run_until_complete(transcribe())
-#     os.remove(file_path)
-
-def transcribe_file(file_path, client_id):
+def transcribe_file(task):
     async def transcribe():
         uri = Config.VOSK_URI
+        logging.info(f"def transcribe: Task ID in transcribe func is {task.task_id} and Client ID is {task.client_sid}")
         async with websockets.connect(uri) as websocket:
-            wf = wave.open(file_path, "rb")
+            wf = wave.open(task.file_path, "rb")
             await websocket.send('{ "config" : { "sample_rate" : %d } }' % (wf.getframerate()))
             buffer_size = int(wf.getframerate() * 1.2)
 
@@ -93,20 +68,23 @@ def transcribe_file(file_path, client_id):
 
                 await websocket.send(data)
                 result = await websocket.recv()
-                clients.send_message('message', json.loads(result))
-                logging.info(f"Transcription result: {result}")
+                #  send_message('message', json.loads(result))
+                clients.send_message(task.client_sid, 'message', json.loads(result))
+                # logging.info(f"Transcription result: {result}")
             
             await websocket.send('{"eof" : 1}')
             final_result = await websocket.recv()
-            clients.send_message('message', json.loads(final_result))
-            logging.info(f"Final transcription result: {final_result}")
+            # send_message('message', json.loads(final_result))
+            clients.send_message(task.client_sid, 'message', json.loads(final_result))
+            # logging.info(f"Final transcription result: {final_result}")
             
-            clients.send_message('transcription_finished')
-            logging.info("Transcription finished")
+            # send_message('transcription_finished')
+            clients.send_message(task.client_sid, 'transcription_finished')
+            logging.info("def transcribe: Transcription finished")
     
     asyncio.run(transcribe())
-    # loop.run_until_complete(transcribe())
-    os.remove(file_path)
+    os.remove(task.file_path)
+
 
 def send_message(event, data=None, room=None):
     if room:
@@ -129,5 +107,28 @@ def handle_connect():
 @socketio.on('disconnect')
 def handle_disconnect():
     client_id = request.sid
-    session['client_id'] = client_id  # Сохраняем client_id в сессии
     clients.remove_client(client_id)
+
+  
+
+@socketio.on('listen_task')
+def handle_listen_task(data):
+    logging.info(f'got information: {data}')
+    task_id = data.get('task_id')
+    client_sid = request.sid
+    logging.info(f'listen task request: task id is {task_id} and client sid is {client_sid}')
+
+    if task_id:        
+        task = task_manager.find_task(task_id)
+        task.set_client(client_sid) 
+        if task:
+            socketio.start_background_task(
+                target=transcribe_file, 
+                task=task
+            )    
+               
+        logging.info(f"def upload: started work on WAV file {task.filename} with id {task_id}")
+
+        send_message('listening', {'message': f'Listening to task {task_id}'}, room=client_sid)
+    else:
+        send_message('error', {'message': 'Invalid task_id'}, room=client_sid)
