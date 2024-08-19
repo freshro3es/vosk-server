@@ -13,8 +13,8 @@ class Task:
         self.status = status
         logging.info(f"Task {self.task_id} status updated to {self.status}")
 
-    # def set_client(self, client_sid: str):
-    #     self.client_sid = client_sid
+    def set_client(self, client_sid: str):
+        self.client_sid = client_sid
         
     def get_task_id(self):
         return self.task_id

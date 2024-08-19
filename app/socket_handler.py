@@ -17,7 +17,7 @@ def handle_listen_task(data):
 
     if task_id:
         task_manager =  current_app.config['TASK_MANAGER']
-        task = task_manager.find_task(task_id)
+        task = task_manager.find_task_by_id(task_id)
         if task:
             task.set_client(request.sid)
             logging.info(f"listen_task event: started work on WAV file {task.filename} with id {task_id}")
@@ -33,3 +33,31 @@ def handle_listen_task(data):
 def send_message(client_sid, event, data=None):
     if client_sid:
         socketio.emit(event, data, room=client_sid)
+
+# Обработчик WebSocket для начала передачи аудио данных
+@socketio.on('start_recording')
+def handle_start_recording():
+    logging.info(f"Recording started")
+    task_manager =  current_app.config['TASK_MANAGER']
+    task = task_manager.add_voice_task(request.sid)
+    logging.info(f"Client {task.client_sid} created a file. Audio file path: {task.audio_file_path}")
+
+    # Запуск фоновой задачи для обработки аудио данных
+    socketio.start_background_task(target=task.transcribe_audio_stream)
+    
+# Обработчик WebSocket для приема аудио данных
+@socketio.on('audio_data')
+def handle_audio_data(data):
+    # logging.info(f"Audio data recieved from {request.sid}")
+    task_manager =  current_app.config['TASK_MANAGER']
+    task = task_manager.find_task_by_client(request.sid)
+    audio_data = data.get('audio_data')
+    task.put_data(audio_data)
+
+# Обработчик WebSocket для остановки передачи аудио данных
+@socketio.on('stop_recording')
+def handle_stop_recording():
+    logging.info(f"Recording stopped")
+    task_manager =  current_app.config['TASK_MANAGER']
+    task = task_manager.find_task_by_client(request.sid)
+    task.put_data(None)

@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()  # <-- Должно быть самым первым
 from app import create_app
 from app.context import socketio
 
