@@ -2,8 +2,6 @@ import logging
 from app.data.task import Task
 from app.data.wav_task import WAVTask
 
-
-
 class TaskManager:
     def __init__(self):
         self.tasks = []

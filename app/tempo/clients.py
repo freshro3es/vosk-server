@@ -1,6 +1,6 @@
 from flask import request
 from flask_socketio import disconnect, emit, send
-from app.extensions import socketio
+from app.context import socketio
 import logging
 
 class Clients:
@@ -30,3 +30,8 @@ class Clients:
         sid = self.get_client_sid(client_id)
         if sid:
             socketio.emit(event, data, room=sid)
+            
+    @staticmethod
+    def send_message(client_sid, event, data=None):
+        if client_sid:
+            socketio.emit(event, data, room=client_sid)

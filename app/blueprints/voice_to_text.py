@@ -6,7 +6,7 @@ import wave
 import time
 import asyncio
 import websockets
-from app.extensions import socketio
+from app.context import socketio
 from app.config import Config
 from threading import Lock
 import logging
