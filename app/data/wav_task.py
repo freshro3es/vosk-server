@@ -27,13 +27,22 @@ class WAVTask(Task):
                 wf = wave.open(self.file_path, "rb")
                 await websocket.send('{ "config" : { "sample_rate" : %d } }' % (wf.getframerate()))
                 buffer_size = int(wf.getframerate() * 1.2)
+                
+                send_message(self.client_sid, 'working')
 
                 while True:
                     data = wf.readframes(buffer_size)
                     if len(data) == 0:
                         break
+                    
 
-                    await websocket.send(data)
+                    if not self.is_speech(data, wf.getframerate()):
+                        logging.info(f'Work stopped')
+                        send_message(self.client_sid, 'stopped')
+                        continue
+                        
+                    send_message(self.client_sid, 'working')
+                    await websocket.send(data)    
                     result = await websocket.recv()
                     send_message(self.client_sid, 'message', json.loads(result))
                     # logging.info(f"Transcription result: {result}")
@@ -43,6 +52,8 @@ class WAVTask(Task):
                 send_message(self.client_sid, 'message', json.loads(final_result))
                 # logging.info(f"Final transcription result: {final_result}")
             
+                send_message(self.client_sid, 'stopped')
+                
                 send_message(self.client_sid, 'transcription_finished')
                 logging.info("def transcribe: Transcription finished")
     

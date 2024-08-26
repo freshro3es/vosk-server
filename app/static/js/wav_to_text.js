@@ -59,9 +59,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
 
 
-    wsHandler.socket.on('client_id', (messege) => {
-        console.log(messege);
+    wsHandler.socket.on('client_id', (message) => {
+        console.log(message);
     });
+
+    wsHandler.socket.on('working', () => {
+        document.getElementById('circle').style.background = "yellow";
+    })
+
+    wsHandler.socket.on('stopped', () => {
+        document.getElementById('circle').style.background = "white";
+    })
 
     
 });

@@ -1,5 +1,12 @@
-Flask
-Flask-SocketIO
-Flask-CORS
-eventlet
-websockets
+pip:
+    Flask
+    Flask-SocketIO
+    Flask-CORS
+    eventlet
+    websockets
+    pydub
+    numpy
+    scipy
+
+bash:
+    ffmpeg

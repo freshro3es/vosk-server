@@ -79,6 +79,21 @@
      justify-content: space-around;
  }
 
+ .task {
+    display: flex;
+    flex-direction: row;
+
+ }
+
+ #circle {
+    align-self: center;
+    width: 10px;
+    height: 10px;
+    background: white;
+    border: 2px solid black;
+    border-radius: 50%
+  }
+
  /* Скрыть оригинальный input */
  .file-input-wrapper {
      position: relative;

@@ -1,6 +1,10 @@
 import uuid
 import logging
 from app.data.task_status import TaskStatus
+import numpy as np
+import scipy.fftpack
+
+
 # from app.data.client import Client
 
 class Task:
@@ -18,3 +22,29 @@ class Task:
         
     def get_task_id(self):
         return self.task_id
+    
+    def is_speech(self, audio_data, sample_rate):
+        # Преобразование аудиоданных в массив NumPy
+        # audio_array = np.frombuffer(audio_data.get_raw_data(), dtype=np.int16)
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+    
+        # Применение быстрого преобразования Фурье (FFT)
+        fft_spectrum = np.abs(scipy.fftpack.fft(audio_array))
+    
+        # Частотная шкала
+        freqs = scipy.fftpack.fftfreq(len(fft_spectrum), 1/sample_rate)
+    
+        # Удаление отрицательных частот
+        positive_freqs = freqs[freqs >= 0]
+        positive_spectrum = fft_spectrum[freqs >= 0]
+    
+        # Ограничение диапазона частот для речи (примерно от 300 Гц до 3000 Гц)
+        speech_freqs = positive_spectrum[(positive_freqs >= 300) & (positive_freqs <= 3000)]
+    
+        # Анализ энергии сигнала в этом диапазоне
+        speech_energy = np.sum(speech_freqs ** 2)
+    
+        # Пороговое значение для определения речи
+        energy_threshold = 500000  # Настройка порога в зависимости от условий
+    
+        return speech_energy > energy_threshold

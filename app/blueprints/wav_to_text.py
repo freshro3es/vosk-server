@@ -3,6 +3,7 @@ from werkzeug.utils import secure_filename
 import logging
 import os
 from app.data.wav_task import WAVTask
+from app.libraries.converter import Converter
 
 wav_bp = Blueprint('wav_bp', __name__, template_folder="templates")
 
@@ -19,9 +20,11 @@ def upload():
 
     logging.info(f"Received file: {file.filename}")
     logging.info(f"File content type: {file.content_type}")
-
+    
     if not file.filename.endswith('.wav'):
-        return jsonify({"error": "File format not supported, please upload a WAV file"}), 400
+        file = Converter.convert_file(file)
+        if file is None:
+            return jsonify({"error": "File format not supported, please upload a WAV file"}), 400
 
     filename = secure_filename(file.filename)
     file_path = os.path.join("uploads", filename)
