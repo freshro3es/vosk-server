@@ -8,5 +8,9 @@ pip:
     numpy
     scipy
 
+    torchaudio
+    onnxruntime
+    silero-vad
+
 bash:
     ffmpeg

@@ -1,6 +1,7 @@
 import WebSocketHandler from './modules/webSocketHandler.js';
 import voskHandler from './modules/voskMessageHandler.js';
 import download from './modules/download.js';
+import timer from './modules/timer.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
     await initialize();
@@ -43,6 +44,9 @@ document.addEventListener("DOMContentLoaded", async () => {
             const data = await response.json();
             task_id = data.task_id;
             console.log(task_id);
+            //------------------------------
+            timer.start('recording-time');
+            //------------------------------
             wsHandler.sendEvent('listen_task', {task_id:task_id})
             
         } else {
@@ -56,6 +60,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     wsHandler.socket.on('transcription_finished', () => {
         document.getElementById('downloadBtn').style.display = 'block';
+
+        timer.stop();
     });
 
 
