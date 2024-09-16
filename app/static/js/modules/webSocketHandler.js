@@ -50,9 +50,10 @@ class WebSocketHandler {
         }
     }
 
-    startRecording() {
+    startRecording(channelCount, sampleRate) {
         if (this.socket.connected) {
-            this.socket.emit('start_recording');
+            console.log('channelcount is ', channelCount, 'and sample rate is ', sampleRate);
+            this.socket.emit('start_recording', {channelCount, sampleRate});
         } else {
             console.error("WebSocket is not open.");
         }

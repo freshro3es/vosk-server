@@ -1,16 +1,11 @@
-pip:
-    Flask
-    Flask-SocketIO
-    Flask-CORS
-    eventlet
-    websockets
-    pydub
-    numpy
-    scipy
-
-    torchaudio
-    onnxruntime
-    silero-vad
-
-bash:
-    ffmpeg
+Flask
+Flask-SocketIO
+Flask-CORS
+eventlet
+websockets
+pydub
+numpy
+scipy
+torchaudio
+onnxruntime
+silero-vad

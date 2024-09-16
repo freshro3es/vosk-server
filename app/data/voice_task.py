@@ -14,6 +14,7 @@ import time
 class VoiceTask(Task):
     def __init__(self, client_sid: str, framerate:int=16000, channels:int=1, sampwidth:int=2):
         super().__init__()
+        self.set_client(client_sid)
         self.audio_queue = Queue()
         self.framerate = framerate
         self.channels = channels
@@ -44,13 +45,18 @@ class VoiceTask(Task):
             uri = Config.VOSK_URI
             async with websockets.connect(uri) as websocket:
                 logging.info(f"Connected to websocket of vosk")
-                await websocket.send('{ "config" : { "sample_rate" : 16000 } }')
+                await websocket.send('{ "config" : { "sample_rate" : '+ str(self.framerate) +' } }')
                 logging.info(f"client_id is {self.client_sid}")
                 
                 while True:
+                    if self.audio_queue.empty():
+                        await asyncio.sleep(1)
+                        continue
+                    
                     data = self.audio_queue.get()
                     logging.info(f"Got data from audio queue")
-                    if data is None and self.audio_queue.empty(): # Наверное, если добавить И на очередь, то ок?
+                    
+                    if data is None:
                         break  # Завершаем цикл, если получили сигнал окончания записи
                 
                     if data:
@@ -68,4 +74,26 @@ class VoiceTask(Task):
 
                 await websocket.send('{"eof" : 1}')
                 self.audio_file.close()
+                log_wav_file_params(self.audio_file_path)           
         asyncio.run(transcribe())
+        
+        
+def log_wav_file_params(file_path):
+    try:
+        with wave.open(file_path, 'rb') as wf:
+            params = wf.getparams()
+            n_channels, sampwidth, framerate, n_frames = params[:4]
+
+            # Длительность аудио в секундах
+            duration = n_frames / float(framerate)
+
+            # Логирование параметров
+            logging.info(f"WAV File: {file_path}")
+            logging.info(f"Number of Channels: {n_channels}")
+            logging.info(f"Sample Width (bytes): {sampwidth}")
+            logging.info(f"Frame Rate (samples per second): {framerate}")
+            logging.info(f"Number of Frames: {n_frames}")
+            logging.info(f"Duration (seconds): {duration:.2f}")
+
+    except wave.Error as e:
+        logging.error(f"Error processing WAV file: {e}")

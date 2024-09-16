@@ -1,6 +1,7 @@
 import logging
 from flask import request, current_app
 from app.context import socketio
+import numpy as np
 
 @socketio.on('connect')
 def handle_connect():
@@ -36,10 +37,12 @@ def send_message(client_sid, event, data=None):
 
 # Обработчик WebSocket для начала передачи аудио данных
 @socketio.on('start_recording')
-def handle_start_recording():
-    logging.info(f"Recording started")
+def handle_start_recording(data):
+    channel_count = data.get('channelCount')
+    sample_rate = data.get('sampleRate')
+    logging.info(f"Recording started, num channels is {channel_count} and sample rate is {sample_rate}")
     task_manager =  current_app.config['TASK_MANAGER']
-    task = task_manager.add_voice_task(request.sid)
+    task = task_manager.add_voice_task(request.sid, sample_rate, channel_count, 2)
     logging.info(f"Client {task.client_sid} created a file. Audio file path: {task.audio_file_path}")
 
     # Запуск фоновой задачи для обработки аудио данных
@@ -48,7 +51,7 @@ def handle_start_recording():
 # Обработчик WebSocket для приема аудио данных
 @socketio.on('audio_data')
 def handle_audio_data(data):
-    # logging.info(f"Audio data recieved from {request.sid}")
+    logging.info(f"Audio data recieved from {request.sid}")
     task_manager =  current_app.config['TASK_MANAGER']
     task = task_manager.find_task_by_client(request.sid)
     audio_data = data.get('audio_data')
@@ -61,3 +64,4 @@ def handle_stop_recording():
     task_manager =  current_app.config['TASK_MANAGER']
     task = task_manager.find_task_by_client(request.sid)
     task.put_data(None)
+    

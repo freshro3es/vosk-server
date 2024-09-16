@@ -13,8 +13,8 @@ class TaskManager:
     def add_wav_task(self, task: WAVTask):
         self.tasks.append(task)
         
-    def add_voice_task(self, client_sid: str):
-        task = VoiceTask(client_sid)
+    def add_voice_task(self, client_sid: str, framerate:int=16000, channels:int=1, sampwidth:int=2):
+        task = VoiceTask(client_sid, framerate, channels, sampwidth)
         self.tasks.append(task)
         return task
     
