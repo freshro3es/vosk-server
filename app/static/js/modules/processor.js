@@ -8,6 +8,7 @@ class AudioProcessor extends AudioWorkletProcessor {
         for (let i = 0; i < channelData.length; i++) {
             const s = Math.max(-1, Math.min(1, channelData[i]));
             int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+            // int16Array[i] = channelData[i] * 32767
         }
 
         // Отправляем данные в главный поток
