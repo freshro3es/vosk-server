@@ -6,6 +6,3 @@ websockets
 pydub
 numpy
 scipy
-torchaudio
-onnxruntime
-silero-vad

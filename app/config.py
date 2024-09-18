@@ -10,7 +10,8 @@ class Config:
     with open("app/static/config.json") as config_file:
         config = json.load(config_file)
 
-    SERVER_URI = config['serverUrl']
-    VOSK_URI = os.getenv('VOSK_SERVER_URL', 'ws://localhost:2700')
+    # SERVER_URI = config['serverUrl']
+    SERVER_URI = "http://" + "127.0.0.1" + ":" + str(os.getenv('PORT', 5000))
+    VOSK_URI = os.getenv('VOSK', 'ws://localhost:2700')
     # VOSK_URI = config['voskUrl']
     os.makedirs(RECORDS_DIR, exist_ok=True)

@@ -9,7 +9,7 @@ import os
 import asyncio
 import json
 
-from app.libraries.vad import voice_prob
+# from app.libraries.vad import voice_prob
 
 import numpy as np
 from scipy.signal import resample
