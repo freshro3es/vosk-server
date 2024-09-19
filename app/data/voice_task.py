@@ -1,4 +1,4 @@
-from eventlet.queue import Queue
+from queue import Queue
 from app.config import Config
 from app.socket_handler import send_message
 from app.data.task import Task

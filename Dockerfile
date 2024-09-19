@@ -12,6 +12,8 @@ ENV FLASK_APP=app
 ENV HOST=0.0.0.0
 ENV PORT=5000
 ENV VOSK=ws://host.docker.internal:2700
+ENV RECORDS_DIR = records
+ENV UPLOADS_DIR = uploads
 
 EXPOSE 5000
 

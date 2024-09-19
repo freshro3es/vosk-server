@@ -5,12 +5,10 @@ import timer from './modules/timer.js';
 import download from './modules/download.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // Ждём пока загрузится конфигурация
-    await initialize();
 
     let isRecording = false;
 
-    const wsUrl = window.serverUrl;
+    const wsUrl = window.location.origin;
     const socket = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
     document.getElementById('record').addEventListener('click', handleRecording);

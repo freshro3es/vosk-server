@@ -4,9 +4,8 @@ import download from './modules/download.js';
 import timer from './modules/timer.js';
 
 document.addEventListener("DOMContentLoaded", async () => {
-    await initialize();
 
-    const wsUrl = window.serverUrl;
+    const wsUrl = window.location.origin;
     const wsHandler = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
     let task_id;
