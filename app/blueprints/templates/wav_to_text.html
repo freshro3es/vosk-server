@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>WAV to Text</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.4.1/socket.io.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/configs/config.js') }}"></script>
+    <!-- <script type="module" src="{{ url_for('static', filename='js/modules/toggleConfg.js') }}"></script> -->
+    <script type="module" src="{{ url_for('static', filename='js/wav_to_text.js') }}" defer></script>
+</head>
+
+<body>
+    <div class="header">
+        <a class="header__logo" href="/" title="Rec & Etu">
+            <img class="logo-img" src="https://rec-etu.com/images/joomlart/uber/logo/logo-header_spb.gif"
+                alt="Rec & Etu">
+        </a>
+        <div class="header__nav">
+            <a href="/wav-to-text"><button class="nav__btn">Файл в текст</button></a>
+            <a href="/voice-to-text"><button class="nav__btn">Голос в текст</button></a>
+        </div>
+    </div>
+    <div class="content">
+        <div class="uploadForm">
+            <h1 style="margin: 20px 0;">Загрузите аудио файл для транскрибирования</h1>
+            <form id="uploadForm">
+                <div class="file-input-wrapper">
+                    <span class="custom-file-button">Выбрать файл</span>
+                    <input type="file" id="fileInput" name="file" accept="audio/*">
+                    <span class="file-name" id="fileName">Файл не выбран</span>
+                </div>
+                <div class="task">
+                    <button type="submit">Загрузить</button>
+                    <div id="circle"></div>
+                </div>
+            </form>
+        </div>
+        <!-- <div class="configForm">
+            <h3>Настройки конфигурации</h3>
+
+            <label>
+                <input type="checkbox" id="useVadCheckbox" onchange="toggleVADOptions()">
+                Использовать VAD
+            </label>
+
+            
+            <div id="vadOptions" style="display: none; margin-top: 10px;">
+                <label>
+                    <input type="radio" name="vadMode" value="before" onchange="toggleBufferSize()" checked>
+                    Использовать VAD перед обработкой
+                </label>
+                <br>
+                <label>
+                    <input type="radio" name="vadMode" value="streaming" onchange="toggleBufferSize()">
+                    Использовать VAD в потоковом режиме
+                </label>
+
+        
+                <div id="bufferSizeContainer" style="display: none; margin-top: 10px;">
+                    <label for="bufferSize">Размер буфера (в миллисекундах):</label>
+                    <input type="range" id="bufferSize" min="32" max="3200" step="32" value="32"
+                        oninput="updateBufferSizeValue()">
+                    <span id="bufferSizeValue">32</span> мс
+                </div>
+            </div>
+        </div> -->
+
+        <div id="resultForm">
+            <div>Время обработки: <span id="recording-time">0:00</span></div>
+            <h2 style="margin-top: 20px;">Результат транскрибирования</h2>
+            <div id="result"></div>
+            <button id="downloadBtn"
+                style="display: none; align-self: end; margin-right: 30px; margin-bottom: 100px;">Скачать</button>
+        </div>
+    </div>
+</body>
+
+</html>

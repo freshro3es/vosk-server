@@ -1,0 +1,6 @@
+{
+    "recordsDir": "records",
+    "uploadsDir": "uploads",
+    "serverUrl": "http://127.0.0.1:5000",
+    "voskUrl": "ws://localhost:2700"
+}
