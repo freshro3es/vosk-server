@@ -11,7 +11,7 @@ class WebSocketHandler {
 
     connect() {
         console.log("Connecting to WebSocket at", this.url);
-        this.socket = io(this.url);
+        this.socket = io(this.url,  { transports: ['polling', 'websocket'] });
 
         this.socket.on('connect', () => {
             console.log("WebSocket connected");

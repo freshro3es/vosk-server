@@ -2,6 +2,8 @@ import logging
 from flask import request, current_app
 from app.context import socketio
 import numpy as np
+import eventlet
+import asyncio
 
 @socketio.on('connect')
 def handle_connect():
@@ -27,7 +29,7 @@ def handle_listen_task(data):
             )
             send_message(request.sid, 'listening', {'message': f'Listening to task {task_id}'})
         else:
-            send_message(request.sid, 'error', {'message': 'Task not found'})
+            send_message(request.sid, 'error', {'message': f'Task {task_id} not found'})
     else:
         send_message(request.sid, 'error', {'message': 'Invalid task_id'})
         

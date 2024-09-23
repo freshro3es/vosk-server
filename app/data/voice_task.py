@@ -3,6 +3,7 @@ from app.config import Config
 from app.socket_handler import send_message
 from app.data.task import Task
 from app.data.task_status import TaskStatus
+import eventlet
 import logging
 import wave
 import websockets
@@ -75,7 +76,8 @@ class VoiceTask(Task):
                 await websocket.send('{"eof" : 1}')
                 self.audio_file.close()
                 log_wav_file_params(self.audio_file_path)           
-        asyncio.run(transcribe())
+            asyncio.run(transcribe())
+            
         
         
 def log_wav_file_params(file_path):
