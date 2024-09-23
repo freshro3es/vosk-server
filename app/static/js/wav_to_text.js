@@ -6,6 +6,8 @@ import timer from './modules/timer.js';
 document.addEventListener("DOMContentLoaded", async () => {
 
     const wsUrl = window.location.origin;
+    console.log(`current url is ${window.location.origin}`);
+    
     const wsHandler = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
     let task_id;
@@ -29,7 +31,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         formData.append('file', fileInput.files[0]);
 
         // Send the data
-        const response = await fetch( wsUrl + '/upload', {
+        const response = await fetch(wsUrl + '/upload', {
             method: 'POST',
             body: formData
         });
@@ -43,11 +45,22 @@ document.addEventListener("DOMContentLoaded", async () => {
             const data = await response.json();
             task_id = data.task_id;
             console.log(task_id);
-            //------------------------------
-            timer.start('recording-time');
-            //------------------------------
-            wsHandler.sendEvent('listen_task', {task_id:task_id})
-            
+
+            // Интервал для отправки запроса на сервер каждые 2 секунды
+            const intervalId = setInterval(() => {
+                console.log('Отправляю запрос listen_task');
+                wsHandler.sendEvent('listen_task', { task_id: task_id });
+            }, 2000); // Отправляем запрос каждые 2 секунды
+
+            // Обработчик события для успешного подписывания на таску
+            wsHandler.socket.on('listening', (data) => {
+                if (data.message.includes(task_id)) {
+                    console.log(`Таска ${task_id} найдена и прослушивается`);
+                    timer.start('recording-time'); // Запускаем таймер обработки файла
+                    clearInterval(intervalId); // Останавливаем интервал, если таска найдена
+                }
+            });
+
         } else {
             console.error('Failed to upload file');
         }
@@ -76,5 +89,5 @@ document.addEventListener("DOMContentLoaded", async () => {
         document.getElementById('circle').style.background = "white";
     })
 
-    
+
 });

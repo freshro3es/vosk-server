@@ -2,6 +2,7 @@ from app.config import Config
 from app.socket_handler import send_message
 from app.data.task import Task
 from app.data.task_status import TaskStatus
+import eventlet
 import logging
 import wave
 import websockets
@@ -57,22 +58,14 @@ class WAVTask(Task):
         resampled_data = resample(data, num_samples)
         return resampled_data
         
+        
+    
     def transcribe_file(self):
         async def transcribe():
             uri = Config.VOSK_URI
             logging.info(f"def transcribe: Task ID in transcribe func is {self.task_id} and Client ID is {self.client_sid}")
             async with websockets.connect(uri) as websocket:
                 wf = wave.open(self.file_path, "rb")
-                
-                # # Открываем файл для записи обработанных данных
-                # output_wav = wave.open('output.wav', 'wb')
-                # output_wav.setnchannels(1)
-                # output_wav.setsampwidth(wf.getsampwidth())
-                # output_wav.setframerate(16000)
-                
-                
-                # await websocket.send('{ "config" : { "sample_rate" : %d } }' % (wf.getframerate()))
-                # buffer_size = int(wf.getframerate() * 1.2)
                 
                 target_samples = 512
                 
@@ -86,8 +79,6 @@ class WAVTask(Task):
                     
                     # Преобразование в массив numpy
                     audio_data = np.frombuffer(data, dtype=np.int16)
-                    
-                    # logging.info(f"audio_data is {audio_data}")
 
                     # Преобразование стерео в моно (если нужно)
                     if wf.getnchannels() == 2:
@@ -130,7 +121,11 @@ class WAVTask(Task):
                 # output_wav.close()
     
         log_wav_file_params(self.file_path)
-        asyncio.run(transcribe())
+        asyncio.run(transcribe())  
+        
+        # Используем eventlet для выполнения асинхронной задачи
+        # eventlet.spawn(lambda: asyncio.run(transcribe()))   
+        
         os.remove(self.file_path)
         # log_wav_file_params("output.wav")
         

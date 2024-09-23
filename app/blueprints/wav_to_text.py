@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import logging
 import os
+import time
 from app.data.wav_task import WAVTask
 from app.libraries.converter import Converter
 
@@ -27,7 +28,7 @@ def upload():
             return jsonify({"error": "File format not supported, please upload a WAV file"}), 400
 
     filename = secure_filename(file.filename)
-    file_path = os.path.join("uploads", filename)
+    file_path = os.path.join(os.path.join(os.getenv('UPLOADS_DIR', 'uploads'), f"{filename}_{int(time.time())}.wav"))
     file.save(file_path)
 
     if not os.path.exists(file_path):
@@ -37,6 +38,7 @@ def upload():
     task = WAVTask(file_path, filename)
     task_manager =  current_app.config['TASK_MANAGER']
     task_manager.add_wav_task(task)
+    logging.info(f"Generated task with id: {task.task_id}")
 
     # Отправляем task_id клиенту
     return jsonify({"task_id": task.task_id}), 200
