@@ -1,0 +1,43 @@
+# version: '3.8'
+
+services:
+  # Flask-сервер
+  flask-server:
+    build: .
+    container_name: vosk-flask-server
+    environment:
+      - FLASK_APP=${FLASK_APP}
+      - HOST=${HOST}
+      - PORT=${PORT}
+      - VOSK=${VOSK}
+      - RECORDS_DIR=${RECORDS_DIR}
+      - UPLOADS_DIR=${UPLOADS_DIR}
+    volumes:
+      - .:/app
+    expose:
+      - "${PORT}"
+    networks:
+      - app-network
+
+  # Nginx сервер для HTTPS
+  nginx:
+    image: nginx:stable-alpine
+    container_name: nginx-server
+    ports:
+      - "${NGINX_PORT}:443"   # HTTPS порт для Nginx
+      - "80:80"     # HTTP
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./certificates:/etc/nginx/ssl
+    environment:
+      - PORT=${PORT}
+      - NGINX_PORT=${NGINX_PORT}
+    command: /bin/sh -c "nginx -g 'daemon off;'" 
+    depends_on:
+      - flask-server
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge

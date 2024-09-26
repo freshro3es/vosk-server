@@ -6,3 +6,6 @@ websockets
 pydub
 numpy
 scipy
+python-dotenv
+ffmpeg==1.4
+ffprobe==0.5
