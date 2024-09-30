@@ -14,6 +14,7 @@ services:
       - UPLOADS_DIR=${UPLOADS_DIR}
     volumes:
       - .:/app
+      - ./docker-records:/app/records  # Пробрасываем папку наружу
     expose:
       - "${PORT}"
     networks:

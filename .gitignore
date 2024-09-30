@@ -1,5 +1,6 @@
 __pycache__/
 .vscode/
+docker-records/
 uploads/*
 records/*
 certificates/*

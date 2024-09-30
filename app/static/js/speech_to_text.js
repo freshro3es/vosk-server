@@ -15,6 +15,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById('downloadBtn').addEventListener('click', download.downloadText('result'));
 
     async function handleRecording() {
+        // console.log(`Went into ${handleRecording.name}`);
+        // console.log(`isRecording variable now is "${isRecording}"`);
         if (!isRecording) {
             isRecording = true;
             document.getElementById('record').textContent = 'Остановить запись';
