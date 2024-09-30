@@ -2,7 +2,6 @@ from app.config import Config
 from app.socket_handler import send_message
 from app.data.task import Task
 from app.data.task_status import TaskStatus
-import eventlet
 import logging
 import wave
 import websockets

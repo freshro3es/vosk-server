@@ -4,7 +4,7 @@ services:
   # Flask-сервер
   flask-server:
     build: .
-    container_name: vosk-flask-server
+    container_name: vosk-server
     environment:
       - FLASK_APP=${FLASK_APP}
       - HOST=${HOST}

@@ -1,6 +1,3 @@
-import eventlet
-eventlet.monkey_patch(socket=True, select=True, time=True)
-
 from app import create_app
 from app.context import socketio
 from app.config import Config
