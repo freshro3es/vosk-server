@@ -74,7 +74,8 @@ class VoiceTask(Task):
 
                 await websocket.send('{"eof" : 1}')
                 self.audio_file.close()
-                log_wav_file_params(self.audio_file_path)           
+                log_wav_file_params(self.audio_file_path) 
+                self.client_sid += self.audio_file_path          
         asyncio.run(transcribe())
             
         
