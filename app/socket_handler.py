@@ -50,7 +50,7 @@ def handle_start_recording(data):
 def handle_audio_data(data):
     logging.info(f"Audio data recieved from {request.sid}")
     task_manager =  current_app.config['TASK_MANAGER']
-    task = task_manager.find_task_by_client(request.sid)
+    task = task_manager.find_current_task_by_client(request.sid)
     audio_data = data.get('audio_data')
     task.put_data(audio_data)
 
@@ -59,6 +59,6 @@ def handle_audio_data(data):
 def handle_stop_recording():
     logging.info(f"Recording stopped")
     task_manager =  current_app.config['TASK_MANAGER']
-    task = task_manager.find_task_by_client(request.sid)
+    task = task_manager.find_current_task_by_client(request.sid)
     task.put_data(None)
     

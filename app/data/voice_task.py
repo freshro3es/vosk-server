@@ -10,6 +10,9 @@ import os
 import asyncio
 import json
 import time
+from datetime import datetime
+
+from app.libraries.vad import voice_prob
  
 class VoiceTask(Task):
     def __init__(self, client_sid: str, framerate:int=16000, channels:int=1, sampwidth:int=2):
@@ -22,7 +25,9 @@ class VoiceTask(Task):
         
         # Создаем файл для записи аудио данных в формате WAV
         self.timestamp = int(time.time())
-        self.audio_file_path = os.path.join(Config.RECORDS_DIR, f"{client_sid}_{self.timestamp}.wav")
+        # Получаем текущее время в формате hh-mm-ss_dd-mm-yy
+        current_time = datetime.now().strftime("%d-%m-%yT%H:%M:%SZ")
+        self.audio_file_path = os.path.join(Config.RECORDS_DIR, f"{client_sid}_{current_time}.wav")
         self.audio_file = wave.open(self.audio_file_path, 'wb')
         self.audio_file.setnchannels(channels)  # Mono
         self.audio_file.setsampwidth(sampwidth)  # 16bit
@@ -58,10 +63,17 @@ class VoiceTask(Task):
                     
                     if data is None:
                         break  # Завершаем цикл, если получили сигнал окончания записи
-                
-                    if data:
-                        self.audio_file.writeframes(data)
-                        await websocket.send(data)
+                       
+                    self.audio_file.writeframes(data)   
+                     
+                    # Скармливаем данные VAD детектору
+                    if (voice_prob(data, self.framerate)<0.4):
+                        logging.info(f"Buffer size is {len(data)}, it's {len(data)/512} packages. Audio package is not sended")
+                        send_message(self.client_sid, 'stopped')
+                        continue
+
+                    send_message(self.client_sid, 'working')
+                    await websocket.send(data)
 
                     result = await websocket.recv()
                 
@@ -72,30 +84,15 @@ class VoiceTask(Task):
                     except json.JSONDecodeError:
                         logging.error(f"Failed to decode JSON: {result}")
 
+                send_message(self.client_sid, 'stopped')
                 await websocket.send('{"eof" : 1}')
                 self.audio_file.close()
-                log_wav_file_params(self.audio_file_path) 
-                self.client_sid += self.audio_file_path          
-        asyncio.run(transcribe())
-            
-        
-        
-def log_wav_file_params(file_path):
-    try:
-        with wave.open(file_path, 'rb') as wf:
-            params = wf.getparams()
-            n_channels, sampwidth, framerate, n_frames = params[:4]
-
-            # Длительность аудио в секундах
-            duration = n_frames / float(framerate)
-
-            # Логирование параметров
-            logging.info(f"WAV File: {file_path}")
-            logging.info(f"Number of Channels: {n_channels}")
-            logging.info(f"Sample Width (bytes): {sampwidth}")
-            logging.info(f"Frame Rate (samples per second): {framerate}")
-            logging.info(f"Number of Frames: {n_frames}")
-            logging.info(f"Duration (seconds): {duration:.2f}")
-
-    except wave.Error as e:
-        logging.error(f"Error processing WAV file: {e}")
+                self.log_file_params(self.audio_file_path) 
+                # self.client_sid += self.audio_file_path 
+                
+        self.set_status("processing")         
+        try:
+            asyncio.run(transcribe())
+            self.set_status("completed")
+        except:
+            self.set_status("failed")

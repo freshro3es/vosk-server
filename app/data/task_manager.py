@@ -41,4 +41,12 @@ class TaskManager:
         logging.info(f"TaskManager: There is no task with sid {client_sid}")
         return None
     
+    def find_current_task_by_client(self, client_sid):
+        for task in self.tasks:
+            if task.client_sid == client_sid and task.status == "processing":
+                logging.info(f"TaskManager: Found task {task.task_id}")
+                return task
+        logging.info(f"TaskManager: There is no task with sid {client_sid}")
+        return None
+    
     

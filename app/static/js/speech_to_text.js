@@ -9,7 +9,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     let isRecording = false;
 
     const wsUrl = window.location.origin;
-    const socket = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
+    const wsHandler = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
     document.getElementById('record').addEventListener('click', handleRecording);
     document.getElementById('downloadBtn').addEventListener('click', download.downloadText('result'));
@@ -24,12 +24,20 @@ document.addEventListener("DOMContentLoaded", async () => {
             document.getElementById('result').textContent = '';
             document.getElementById('resultForm').classList.add('show');
             voskHandler.clearCache();
-            await recordingHandler.startRecording(socket);
+            await recordingHandler.startRecording(wsHandler);
         } else {
             isRecording = false;
             document.getElementById('record').textContent = 'Записать заново';
-            recordingHandler.stopRecording(socket);
+            recordingHandler.stopRecording(wsHandler);
             document.getElementById('downloadBtn').style.display = 'block';
         }
     }
+
+    wsHandler.socket.on('working', () => {
+        document.getElementById('circle').style.background = "yellow";
+    })
+
+    wsHandler.socket.on('stopped', () => {
+        document.getElementById('circle').style.background = "white";
+    })
 });

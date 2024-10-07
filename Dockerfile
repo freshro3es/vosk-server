@@ -1,10 +1,13 @@
 # Используем легковесный базовый образ Python
-FROM python:3.10-slim
+# FROM python:3.10-slim
+
+# Используем базовый образ с предустановленным torchaudio
+FROM pytorch/pytorch:latest
 
 # Устанавливаем рабочую директорию
 WORKDIR /app
-# COPY requirements.txt .
-COPY . .
+COPY requirements.txt .
+# COPY . .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Создаем необходимые директории
