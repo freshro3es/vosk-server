@@ -22,14 +22,17 @@ def upload():
     logging.info(f"Received file: {file.filename}")
     logging.info(f"File content type: {file.content_type}")
     
-    if not file.filename.endswith('.wav'):
-        file = Converter.convert_file(file)
-        if file is None:
+    
+    if file.filename.endswith('.wav'):
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(os.path.join(os.getenv('UPLOADS_DIR', 'uploads'), f"{filename}_{int(time.time())}.wav"))
+        file.save(file_path)
+    else:
+        filename, file_path = Converter.convert_file(file)
+        if filename is None:
             return jsonify({"error": "File format not supported, please upload a WAV file"}), 400
 
-    filename = secure_filename(file.filename)
-    file_path = os.path.join(os.path.join(os.getenv('UPLOADS_DIR', 'uploads'), f"{filename}_{int(time.time())}.wav"))
-    file.save(file_path)
+    
 
     if not os.path.exists(file_path):
         current_app.logger.error(f"Failed to save file: {file_path}")

@@ -33,6 +33,28 @@ document.addEventListener("DOMContentLoaded", async () => {
         }
     }
 
+    wsHandler.socket.on('disconnect', () => {
+        timer.stop();
+        console.log("Timer stopped");
+        document.getElementById('circle').style.background = "white";
+        console.log("VAD status cleared");
+        if (document.getElementById('result').textContent != '') {
+            document.getElementById('downloadBtn').style.display = 'block';
+        }
+        document.getElementById('errorForm').style.display = 'block';
+        document.getElementById('errorForm').innerHTML = `<b>Соединение было разорвано...</b>`
+    });
+
+    wsHandler.socket.on('connect', () => {
+        if (document.getElementById('errorForm').innerHTML) {
+            document.getElementById('errorForm').innerHTML = `<b>Соединение было восстановлено</b> <br> Запустите задачу снова`
+            setTimeout(() => {
+                document.getElementById('errorForm').innerHTML = '';
+                document.getElementById('errorForm').style.display = 'none';
+            }, 10000)
+        } 
+    });
+
     wsHandler.socket.on('working', () => {
         document.getElementById('circle').style.background = "yellow";
     })

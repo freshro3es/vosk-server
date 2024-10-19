@@ -67,7 +67,7 @@ class VoiceTask(Task):
                     self.audio_file.writeframes(data)   
                      
                     # Скармливаем данные VAD детектору
-                    if (voice_prob(data, self.framerate)<0.4):
+                    if (voice_prob(data, self.framerate)<0.1):
                         logging.info(f"Buffer size is {len(data)}, it's {len(data)/512} packages. Audio package is not sended")
                         send_message(self.client_sid, 'stopped')
                         continue

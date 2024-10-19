@@ -19,7 +19,13 @@ const timer = {
      * @function
      */
     stop() {
-        clearInterval(recordingTimer);
+        if (recordingTimer) {
+            clearInterval(recordingTimer);
+        }
+    },
+
+    reset(elementId) {
+        document.getElementById(elementId).innerText = this.formatTime(0);
     },
     
     /**

@@ -37,13 +37,11 @@ class WAVTask(Task):
             logging.info(f"def transcribe: Task ID in transcribe func is {self.task_id} and Client ID is {self.client_sid}")
             async with websockets.connect(uri) as websocket:
                 wf = wave.open(self.file_path, "rb")
-                
                 target_samples = 512
                 original_rate = wf.getframerate()
-                
+                buffer_size = int(target_samples*(original_rate//512)) # dynamic buffer, takes about 1 second from file
                 await websocket.send('{ "config" : { "sample_rate" : %d } }' % (original_rate))
-                buffer_size = int(target_samples*(original_rate//512)) # 40 packages about 512 samples
-
+        
                 while True:
                     data = wf.readframes(buffer_size)
                     if len(data) == 0:
@@ -54,7 +52,7 @@ class WAVTask(Task):
                         data = self.stereo_to_mono(data)
                     
                     # Скармливаем данные VAD детектору
-                    if (voice_prob(data, original_rate)<0.004):
+                    if (voice_prob(data, original_rate)<0.1):
                         logging.info(f"Buffer size is {buffer_size}, it's {buffer_size/512} packages. Audio package is not sended")
                         send_message(self.client_sid, 'stopped')
                         continue
@@ -62,6 +60,7 @@ class WAVTask(Task):
                     send_message(self.client_sid, 'working')
                     await websocket.send(data)    
                     result = await websocket.recv()
+                    logging.info(result)
                     send_message(self.client_sid, 'message', json.loads(result))
             
                 await websocket.send('{"eof" : 1}')
