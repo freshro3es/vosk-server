@@ -12,7 +12,7 @@ import time
 from datetime import datetime
 import traceback
 
-from app.libraries.vad import voice_prob
+from app.libraries.vad import voice_prob, load_model
 
 
 class VoiceTask(Task):
@@ -57,6 +57,8 @@ class VoiceTask(Task):
         async def transcribe():
             logging.info(f"Audio stream started for client {self.client_sid}")
             uri = Config.VOSK_URI
+            # Загружаем модель VAD
+            vad_model = load_model()
             async with websockets.connect(uri) as websocket:
                 logging.info("Connected to websocket of vosk")
                 await websocket.send(
@@ -87,7 +89,7 @@ class VoiceTask(Task):
                     self.audio_file.writeframes(data)
 
                     # Скармливаем данные VAD детектору
-                    if voice_prob(data, self.framerate) < 0.1:
+                    if voice_prob(vad_model, data, self.framerate) < 0.1:
                         logging.info(
                             f"Buffer size is {len(data)}, it's {len(data)/512} packages. Audio package is not sended"
                         )

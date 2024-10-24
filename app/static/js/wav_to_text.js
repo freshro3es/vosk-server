@@ -3,11 +3,17 @@ import voskHandler from './modules/voskMessageHandler.js';
 import download from './modules/download.js';
 import timer from './modules/timer.js';
 
+const TIMER_ID = 'recording-time';
+const VAD_INDICATOR = 'circle';
+const RESULT_ID = 'result';
+const DOWNLOAD_RESULT_BTN_ID = 'downloadBtn';
+const ERROR_FORM_ID = 'errorForm';
+
 document.addEventListener("DOMContentLoaded", async () => {
 
     const wsUrl = window.location.origin;
     console.log(`current url is ${window.location.origin}`);
-    
+
     const wsHandler = new WebSocketHandler(wsUrl, voskHandler.handleMessage);
 
     let task_id;
@@ -21,10 +27,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         event.preventDefault();
 
         // Clear result form
-        document.getElementById('downloadBtn').style.display = 'none';
-        document.getElementById('result').textContent = '';
+        document.getElementById(DOWNLOAD_RESULT_BTN_ID).style.display = 'none';
+        document.getElementById(RESULT_ID).textContent = '';
         voskHandler.clearCache();
-        timer.reset('recording-time');
+        timer.reset(TIMER_ID);
 
         // Form data to send it
         const fileInput = document.getElementById('fileInput');
@@ -76,26 +82,44 @@ document.addEventListener("DOMContentLoaded", async () => {
         timer.stop();
     });
 
-    wsHandler.socket.on('disconnect', () => {
-        timer.stop();
-        console.log("Timer stopped");
-        document.getElementById('circle').style.background = "white";
-        console.log("VAD status cleared");
-        if (document.getElementById('result').textContent != '') {
-            document.getElementById('downloadBtn').style.display = 'block';
+    const terminal_op_handler = {
+        stop_transcribition() {
+            timer.stop();
+            console.log("Timer stopped");
+            document.getElementById(VAD_INDICATOR).style.background = "white";
+            console.log("VAD status cleared");
+            if (document.getElementById(RESULT_ID).textContent != '') {
+                document.getElementById(DOWNLOAD_RESULT_BTN_ID).style.display = 'block';
+            }
+        },
+        show_error_form(msg) {
+            document.getElementById(ERROR_FORM_ID).style.display = 'block';
+            document.getElementById(ERROR_FORM_ID).innerHTML = msg
+        },
+        hide_error_form(time=0) {
+            setTimeout(() => {
+                document.getElementById(ERROR_FORM_ID).innerHTML = '';
+                document.getElementById(ERROR_FORM_ID).style.display = 'none';
+            }, time)
         }
-        document.getElementById('errorForm').style.display = 'block';
-        document.getElementById('errorForm').innerHTML = `<b>Соединение было разорвано...</b>`
+    }
+
+    wsHandler.socket.on('failed', () => {
+        terminal_op_handler.stop_transcribition();
+        terminal_op_handler.show_error_form(`<b>Обработка файла на сервере провалена</b> <br> Запустите задачу снова`);
+        terminal_op_handler.hide_error_form(5000);
+    });
+
+    wsHandler.socket.on('disconnect', () => {
+        terminal_op_handler.stop_transcribition();
+        terminal_op_handler.show_error_form(`<b>Соединение было разорвано...</b>`);
     });
 
     wsHandler.socket.on('connect', () => {
         if (document.getElementById('errorForm').innerHTML) {
-            document.getElementById('errorForm').innerHTML = `<b>Соединение было восстановлено</b> <br> Запустите задачу снова`
-            setTimeout(() => {
-                document.getElementById('errorForm').innerHTML = '';
-                document.getElementById('errorForm').style.display = 'none';
-            }, 10000)
-        } 
+            terminal_op_handler.show_error_form(`<b>Соединение было восстановлено</b> <br> Запустите задачу снова`);
+            terminal_op_handler.hide_error_form(5000);
+        }
     });
 
 

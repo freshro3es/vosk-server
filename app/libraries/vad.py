@@ -1,4 +1,5 @@
 from silero_vad import load_silero_vad, VADIterator
+from silero_vad.utils_vad import OnnxWrapper
 import numpy as np
 import logging
 import torch
@@ -12,17 +13,18 @@ USE_ONNX = False  # change this to True if you want to test onnx model
 #     model = load_silero_vad(onnx=USE_ONNX)
 #     return VADIterator(model, sampling_rate=SAMPLING_RATE)
 
-try:
+# try:
+#     model = load_silero_vad(onnx=USE_ONNX)
+#     vad_iterator = VADIterator(model, sampling_rate=SAMPLING_RATE)
+# except Exception:
+#     logging.info(traceback.format_exc())
+    
+def load_model() -> (OnnxWrapper):
     model = load_silero_vad(onnx=USE_ONNX)
-    vad_iterator = VADIterator(model, sampling_rate=SAMPLING_RATE)
-except Exception:
-    logging.info(traceback.format_exc())
+    return model
 
 
-def voice_prob(data: bytes, original_sample_rate: int):
-    # # Преобразование байтового потока в тензор PyTorch напрямую без копирования
-    # audio_tensor = torch.frombuffer(data, dtype=torch.int16).float()
-
+def voice_prob(model: OnnxWrapper, data: bytes, original_sample_rate: int):
     audio_tensor = resample_audio(data, original_sample_rate)
 
     speech_probs = []
@@ -32,13 +34,12 @@ def voice_prob(data: bytes, original_sample_rate: int):
         if len(chunk) < window_size_samples:
             break
         speech_prob = model(chunk, SAMPLING_RATE).item()
-        # speech_prob = vad_iterator(chunk)
         speech_probs.append(speech_prob)
-    if np.mean(speech_probs) < 0.004:
+    if np.mean(speech_probs) < 0.1:
         logging.info(
             f"Total amount of speech probes: {len(speech_probs)}, average is {np.mean(speech_probs)}"
         )
-    vad_iterator.reset_states()  # reset model states after each audio
+    # await vad_iterator.reset_states()  # reset model states after each audio
     return np.mean(speech_probs)
 
 

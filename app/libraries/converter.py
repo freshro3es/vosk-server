@@ -43,10 +43,17 @@ def mp3_to_wav(file, buffer: int) -> tuple[str, str] | None:
             pos += buffer
             input_file.seek(pos)
             output_file.seek(pos)
-            logging.info(
+            logging.debug(
                 f"pos is {pos} and framerate is {input_file.samplerate}, type is {input_file.format}, size is {input_file.frames}, raw data type is {data.dtype}"
             )
-
+            
+        logging.debug("New file params: \n" 
+                      f"Framerate {output_file.samplerate} \n"  
+                      f"Filename: {new_filename} \n" 
+                      f"Filepath: {new_filepath} \n"
+                      )
+        input_file.close()
+        output_file.close()
         return new_filename, new_filepath
     except Exception:
         logging.info("something went wrong")

@@ -40,7 +40,7 @@ def handle_listen_task(data):
         send_message(request.sid, "error", {"message": "Invalid task_id"})
 
 
-def send_message(client_sid, event, data=None):
+def send_message(client_sid:str, event:str, data:str=None):
     if client_sid:
         socketio.emit(event, data, room=client_sid)
 
