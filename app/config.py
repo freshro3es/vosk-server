@@ -1,13 +1,19 @@
 import json
 import os
 
+
 class Config:
-    SECRET_KEY = 'secret!'
-    RECORDS_DIR = str(os.getenv('RECORDS_DIR', "records"))
-    UPLOADS_DIR = str(os.getenv('RECORDS_DIR', "uploads"))
-    SERVER_URI = "https://" + str(os.getenv('HOST', "127.0.0.1")) + ":" + str(os.getenv('PORT', 5000))
-    VOSK_URI = os.getenv('VOSK', 'ws://localhost:2700')
-    
+    SECRET_KEY = "secret!"
+    RECORDS_DIR = str(os.getenv("RECORDS_DIR", "records"))
+    UPLOADS_DIR = str(os.getenv("RECORDS_DIR", "uploads"))
+    SERVER_URI = (
+        "https://"
+        + str(os.getenv("HOST", "127.0.0.1"))
+        + ":"
+        + str(os.getenv("PORT", 5000))
+    )
+    VOSK_URI = os.getenv("VOSK", "ws://localhost:2700")
+
     os.makedirs(RECORDS_DIR, exist_ok=True)
     os.makedirs(UPLOADS_DIR, exist_ok=True)
 
@@ -24,10 +30,10 @@ class Config:
             self.config = {}
 
         # Обновление данных в конфигурации
-        self.config['recordsDir'] = self.RECORDS_DIR
-        self.config['uploadsDir'] = self.UPLOADS_DIR
-        self.config['serverUrl'] = self.SERVER_URI
-        self.config['voskUrl'] = self.VOSK_URI
+        self.config["recordsDir"] = self.RECORDS_DIR
+        self.config["uploadsDir"] = self.UPLOADS_DIR
+        self.config["serverUrl"] = self.SERVER_URI
+        self.config["voskUrl"] = self.VOSK_URI
 
         # Запись обновленных данных обратно в config.json
         with open(config_path, "w") as config_file:

@@ -1,7 +1,6 @@
 Flask
 Flask-SocketIO
 Flask-CORS
-eventlet
 websockets
 pydub
 numpy
