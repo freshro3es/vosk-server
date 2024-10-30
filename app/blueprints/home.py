@@ -1,13 +1,14 @@
-from flask import Blueprint, request, jsonify, render_template
-from app.context import socketio
+from flask import Blueprint, jsonify, render_template
 from app.config import Config
 
-home_bp = Blueprint('home_bp', __name__, template_folder="templates")
+home_bp = Blueprint("home_bp", __name__, template_folder="templates")
 
-@home_bp.route('/')
+
+@home_bp.route("/")
 def index():
-    return render_template('home.html')
+    return render_template("home.html")
 
-@home_bp.route('/config')
+
+@home_bp.route("/config")
 def get_config():
     return jsonify(Config.config)

@@ -24,9 +24,11 @@
     <div class="content">
         <h1 style="margin: 20px 0;">Голос в текст</h1>
         <div>Время записи: <span id="recording-time">0:00</span></div>
-        <form>
+        <div class="task">
             <button type="button" id="record">Начать запись</button>
-        </form>
+            <div id="circle"></div>
+        </div>
+        <div id="errorForm"></div>
         <div id="resultForm" style="margin-top: 20px;">
             <h2>Результат транскрибирования</h2>
             <div id="result"></div>

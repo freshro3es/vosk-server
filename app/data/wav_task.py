@@ -1,132 +1,152 @@
 from app.config import Config
 from app.socket_handler import send_message
 from app.data.task import Task
-from app.data.task_status import TaskStatus
 import logging
 import wave
+from wave import Wave_read
 import websockets
 import os
 import asyncio
 import json
+import traceback
 
-# from app.libraries.vad import voice_prob
+from app.libraries.vad import voice_prob, load_model
 
 import numpy as np
-from scipy.signal import resample
 
 
-def log_wav_file_params(file_path):
-    try:
-        with wave.open(file_path, 'rb') as wf:
-            params = wf.getparams()
-            n_channels, sampwidth, framerate, n_frames = params[:4]
-
-            # Длительность аудио в секундах
-            duration = n_frames / float(framerate)
-
-            # Логирование параметров
-            logging.info(f"WAV File: {file_path}")
-            logging.info(f"Number of Channels: {n_channels}")
-            logging.info(f"Sample Width (bytes): {sampwidth}")
-            logging.info(f"Frame Rate (samples per second): {framerate}")
-            logging.info(f"Number of Frames: {n_frames}")
-            logging.info(f"Duration (seconds): {duration:.2f}")
-
-    except wave.Error as e:
-        logging.error(f"Error processing WAV file: {e}")
- 
 class WAVTask(Task):
     def __init__(self, file_path: str, filename: str):
         super().__init__()
-        self.file_path = file_path
-        self.filename = filename
-        self.result = None  # Изначально результат пустой
+        self.file_path: str = file_path
+        self.filename: str = filename
+        self.audiofile: Wave_read
+        self.result: str = ''# Изначально результат пустой
 
-    def set_result(self, result: str):
-        self.result = result
-        
-        
-    def stereo_to_mono(self, data):
+    def add_result(self, result: str):
+        if self.result:
+            self.result += result
+        else:
+            self.result = result
+
+    def stereo_to_mono(self, data:bytes):
+        # Преобразование в массив numpy
+        audio_data = np.frombuffer(data, dtype=np.int16)
         # Преобразование стерео в моно усреднением
-        mono_data = (data[0::2] + data[1::2]) // 2
-        return mono_data
+        mono_data = (audio_data[0::2] + audio_data[1::2]) // 2
+        return mono_data.astype(np.int16).tobytes()
 
-    def resample_audio(self, data, original_rate, target_rate):
-        # Изменение частоты дискретизации
-        num_samples = int(len(data) * float(target_rate) / original_rate)
-        resampled_data = resample(data, num_samples)
-        return resampled_data
-        
-        
-    
     def transcribe_file(self):
         async def transcribe():
             uri = Config.VOSK_URI
-            logging.info(f"def transcribe: Task ID in transcribe func is {self.task_id} and Client ID is {self.client_sid}")
+            logging.info(
+                f"def transcribe: Task ID in transcribe func is {self.task_id} and Client ID is {self.client_sid}"
+            )
+            vad_model = load_model()
+            vad_target_samples = 512
             async with websockets.connect(uri) as websocket:
-                wf = wave.open(self.file_path, "rb")
-                
-                target_samples = 512
-                
-                await websocket.send('{ "config" : { "sample_rate" : %d } }' % (16000))
-                buffer_size = int(target_samples*40) # 40 packages about 512 samples
+                self.audiofile = wave.open(self.file_path, "rb")
+                original_rate = self.audiofile.getframerate()
+                buffer_size = int(
+                    vad_target_samples * (original_rate // 512)
+                )  # dynamic buffer, takes about 1 second from file
+                await websocket.send(
+                    '{ "config" : { "sample_rate" : %d } }' % (original_rate)
+                )
 
+                active_sentence = False
+                start_time_in_seconds = 0
                 while True:
-                    data = wf.readframes(buffer_size)
+                    if not active_sentence:
+                        active_sentence = True
+                        # Вычисляем тайм-код в секундах
+                        start_time_in_seconds = self.audiofile.tell() / self.audiofile.getframerate()
+
+                    # Считываем массив байтов длинной `buffer_size` из аудиофайла
+                    data = self.audiofile.readframes(buffer_size)
                     if len(data) == 0:
                         break
-                    
-                    # Преобразование в массив numpy
-                    audio_data = np.frombuffer(data, dtype=np.int16)
 
                     # Преобразование стерео в моно (если нужно)
-                    if wf.getnchannels() == 2:
-                        audio_data = self.stereo_to_mono(audio_data)
+                    if self.audiofile.getnchannels() == 2:
+                        data = self.stereo_to_mono(data)
 
-                    # Изменение частоты дискретизации (если нужно)
-                    original_rate = wf.getframerate()
-                    target_rate = 16000  # Частота дискретизации, которую требует модель
-                    if original_rate != target_rate:
-                        audio_data = self.resample_audio(audio_data, original_rate, target_rate)
+                    # Скармливаем данные VAD детектору
+                    if voice_prob(vad_model, data, original_rate) < 0.1:
+                        logging.info(
+                            f"Buffer size is {buffer_size}, it's {buffer_size/512} packages. Audio package is not sended"
+                        )
+                        send_message(self.client_sid, "stopped")
+                        continue
 
-                    # Преобразование обратно в байты
-                    audio_data = audio_data.astype(np.int16).tobytes()
-                    
-                    # if (voice_prob(data)<0.004):
-                    #     logging.info("Audio package is not sended")
-                    #     send_message(self.client_sid, 'stopped')
-                    #     continue
-
-                    # # Запись обработанных данных в файл
-                    # output_wav.writeframes(audio_data)
-                        
-                    send_message(self.client_sid, 'working')
-                    await websocket.send(audio_data)    
+                    send_message(self.client_sid, "working")
+                    await websocket.send(data)
                     result = await websocket.recv()
-                    send_message(self.client_sid, 'message', json.loads(result))
-                    # logging.info(f"Transcription result: {result}")
-            
+
+                    if '"result"' in result:
+                        result = self.process_result(
+                            result, start_time_in_seconds, self.audiofile.tell() / self.audiofile.getframerate()
+                        )
+                        active_sentence = False
+
+                    logging.debug(result)
+                    send_message(self.client_sid, "message", json.loads(result))
+
                 await websocket.send('{"eof" : 1}')
                 final_result = await websocket.recv()
-                send_message(self.client_sid, 'message', json.loads(final_result))
-                # logging.info(f"Final transcription result: {final_result}")
-            
-                send_message(self.client_sid, 'stopped')
-                
-                send_message(self.client_sid, 'transcription_finished')
+                final_result = self.process_result(
+                    final_result, start_time_in_seconds, self.audiofile.tell() / self.audiofile.getframerate()
+                )
+                send_message(self.client_sid, "message", json.loads(final_result))
+
+                send_message(self.client_sid, "stopped")
+                send_message(self.client_sid, "transcription_finished")
                 logging.info("def transcribe: Transcription finished")
-                
-                # # Закрываем файл
-                # output_wav.close()
-    
-        log_wav_file_params(self.file_path)
-        asyncio.run(transcribe())  
+                del vad_model
+
+        self.log_file_params(self.file_path)
+        self.set_status("processing")
+        try:
+            asyncio.run(transcribe())
+            self.set_status("completed")
+        except Exception:
+            self.set_status("failed")
+            send_message(self.client_sid, "failed")
+            logging.info(traceback.format_exc())
+        finally:
+            os.remove(self.file_path)
+
+    def process_result(self, data: str, start: float, end: float) -> str:
+        """
+        Эта функция появилась как ответ на бесполезность временных меток VOSK в поле "result" из-за использования VAD.
         
-        # Используем eventlet для выполнения асинхронной задачи
-        # eventlet.spawn(lambda: asyncio.run(transcribe()))   
+        Модифицирует JSON-строку с промежуточным результатом и текстом из VOSK модели, удаляя поле "result" и добавляя временные метки "start" и "end".
+
+        Аргументы:
+            data (str): Строка с данными в формате JSON.
+            start (float): Время начала, которое будет добавлено в JSON-объект.
+            end (float): Время окончания, которое будет добавлено в JSON-объект.
+
+        Возвращает:
+            str: Обновлённая строка в формате JSON с добавленными полями "start" и "end" и без поля "result".
+            
+        """
+        # Преобразуем строку в словарь
+        parsed_data = json.loads(data)
+
+        # Удаляем ключ "result"
+        if "result" in parsed_data:
+            del parsed_data["result"]
+
+        self.add_result(parsed_data["text"])
         
-        os.remove(self.file_path)
-        # log_wav_file_params("output.wav")
-        
-        
-    
+        # Добавляем start и end в словарь
+        parsed_data["start"] = start
+        parsed_data["end"] = end
+
+        # Преобразуем словарь обратно в строку JSON
+        json_string = json.dumps(parsed_data, ensure_ascii=False)
+
+        # Выводим результат
+        return json_string
+

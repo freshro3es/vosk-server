@@ -1,7 +1,6 @@
 Flask
 Flask-SocketIO
 Flask-CORS
-eventlet
 websockets
 pydub
 numpy
@@ -9,3 +8,6 @@ scipy
 python-dotenv
 ffmpeg==1.4
 ffprobe==0.5
+onnxruntime
+silero-vad
+soundfile

@@ -4,3 +4,4 @@ docker-records/
 uploads/*
 records/*
 certificates/*
+tests
