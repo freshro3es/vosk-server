@@ -21,10 +21,13 @@ class WAVTask(Task):
         self.file_path: str = file_path
         self.filename: str = filename
         self.audiofile: Wave_read
-        self.result: str  # Изначально результат пустой
+        self.result: str = ''# Изначально результат пустой
 
-    def set_result(self, result: str):
-        self.result = result
+    def add_result(self, result: str):
+        if self.result:
+            self.result += result
+        else:
+            self.result = result
 
     def stereo_to_mono(self, data:bytes):
         # Преобразование в массив numpy
@@ -81,7 +84,7 @@ class WAVTask(Task):
                     result = await websocket.recv()
 
                     if '"result"' in result:
-                        result = process_result(
+                        result = self.process_result(
                             result, start_time_in_seconds, self.audiofile.tell() / self.audiofile.getframerate()
                         )
                         active_sentence = False
@@ -91,7 +94,7 @@ class WAVTask(Task):
 
                 await websocket.send('{"eof" : 1}')
                 final_result = await websocket.recv()
-                final_result = process_result(
+                final_result = self.process_result(
                     final_result, start_time_in_seconds, self.audiofile.tell() / self.audiofile.getframerate()
                 )
                 send_message(self.client_sid, "message", json.loads(final_result))
@@ -113,36 +116,37 @@ class WAVTask(Task):
         finally:
             os.remove(self.file_path)
 
-
-def process_result(data: str, start: float, end: float) -> str:
-    """
-    Эта функция появилась как ответ на бесполезность временных меток VOSK в поле "result" из-за использования VAD.
-    
-    Модифицирует JSON-строку с промежуточным результатом и текстом из VOSK модели, удаляя поле "result" и добавляя временные метки "start" и "end".
-
-    Аргументы:
-        data (str): Строка с данными в формате JSON.
-        start (float): Время начала, которое будет добавлено в JSON-объект.
-        end (float): Время окончания, которое будет добавлено в JSON-объект.
-
-    Возвращает:
-        str: Обновлённая строка в формате JSON с добавленными полями "start" и "end" и без поля "result".
+    def process_result(self, data: str, start: float, end: float) -> str:
+        """
+        Эта функция появилась как ответ на бесполезность временных меток VOSK в поле "result" из-за использования VAD.
         
-    """
-    # Преобразуем строку в словарь
-    parsed_data = json.loads(data)
+        Модифицирует JSON-строку с промежуточным результатом и текстом из VOSK модели, удаляя поле "result" и добавляя временные метки "start" и "end".
 
-    # Удаляем ключ "result"
-    if '"result"' in parsed_data:
-        del parsed_data["result"]
+        Аргументы:
+            data (str): Строка с данными в формате JSON.
+            start (float): Время начала, которое будет добавлено в JSON-объект.
+            end (float): Время окончания, которое будет добавлено в JSON-объект.
 
-    # Добавляем start и end в словарь
-    parsed_data["start"] = start
-    parsed_data["end"] = end
+        Возвращает:
+            str: Обновлённая строка в формате JSON с добавленными полями "start" и "end" и без поля "result".
+            
+        """
+        # Преобразуем строку в словарь
+        parsed_data = json.loads(data)
 
-    # Преобразуем словарь обратно в строку JSON
-    json_string = json.dumps(parsed_data, ensure_ascii=False)
+        # Удаляем ключ "result"
+        if "result" in parsed_data:
+            del parsed_data["result"]
 
-    # Выводим результат
-    return json_string
+        self.add_result(parsed_data["text"])
+        
+        # Добавляем start и end в словарь
+        parsed_data["start"] = start
+        parsed_data["end"] = end
+
+        # Преобразуем словарь обратно в строку JSON
+        json_string = json.dumps(parsed_data, ensure_ascii=False)
+
+        # Выводим результат
+        return json_string
 

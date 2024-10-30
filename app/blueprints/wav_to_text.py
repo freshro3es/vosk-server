@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, request, jsonify, current_app
 from werkzeug.utils import secure_filename
 import logging
 import os
-import time
+from datetime import datetime
 from app.data.wav_task import WAVTask
 from app.libraries.converter import Converter
 
@@ -29,7 +29,7 @@ def upload():
         file_path = os.path.join(
             os.path.join(
                 os.getenv("UPLOADS_DIR", "uploads"),
-                f"{filename}_{int(time.time())}.wav",
+                f"{filename[:-4]}_{datetime.now().strftime('%d-%m-%Y')}.wav",
             )
         )
         file.save(file_path)
