@@ -90,14 +90,16 @@ class WAVTask(Task):
                         active_sentence = False
 
                     logging.debug(result)
-                    send_message(self.client_sid, "message", json.loads(result))
+                    if result:
+                        send_message(self.client_sid, "message", json.loads(result))
 
                 await websocket.send('{"eof" : 1}')
                 final_result = await websocket.recv()
                 final_result = self.process_result(
                     final_result, start_time_in_seconds, self.audiofile.tell() / self.audiofile.getframerate()
                 )
-                send_message(self.client_sid, "message", json.loads(final_result))
+                if final_result:
+                    send_message(self.client_sid, "message", json.loads(final_result))
 
                 send_message(self.client_sid, "stopped")
                 send_message(self.client_sid, "transcription_finished")
@@ -133,6 +135,9 @@ class WAVTask(Task):
         """
         # Преобразуем строку в словарь
         parsed_data = json.loads(data)
+
+        if not parsed_data["text"]:
+            return None
 
         # Удаляем ключ "result"
         if "result" in parsed_data:
