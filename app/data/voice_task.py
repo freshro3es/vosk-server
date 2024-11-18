@@ -8,11 +8,12 @@ import websockets
 import os
 import asyncio
 import json
+import requests
 import time
 from datetime import datetime
 import traceback
 
-from app.libraries.vad import voice_prob, load_model
+# from app.libraries.vad import voice_prob, load_model
 
 
 class VoiceTask(Task):
@@ -58,7 +59,7 @@ class VoiceTask(Task):
             logging.info(f"Audio stream started for client {self.client_sid}")
             uri = Config.VOSK_URI
             # Загружаем модель VAD
-            vad_model = load_model()
+            # vad_model = load_model()
             async with websockets.connect(uri) as websocket:
                 logging.info("Connected to websocket of vosk")
                 await websocket.send(
@@ -88,13 +89,13 @@ class VoiceTask(Task):
 
                     self.audio_file.writeframes(data)
 
-                    # Скармливаем данные VAD детектору
-                    if voice_prob(vad_model, data, self.framerate) < 0.1:
-                        logging.info(
-                            f"Buffer size is {len(data)}, it's {len(data)/512} packages. Audio package is not sended"
-                        )
-                        send_message(self.client_sid, "stopped")
-                        continue
+                    # # Скармливаем данные VAD детектору
+                    # if voice_prob(vad_model, data, self.framerate) < 0.1:
+                    #     logging.info(
+                    #         f"Buffer size is {len(data)}, it's {len(data)/512} packages. Audio package is not sended"
+                    #     )
+                    #     send_message(self.client_sid, "stopped")
+                    #     continue
 
                     send_message(self.client_sid, "working")
                     await websocket.send(data)
@@ -109,12 +110,13 @@ class VoiceTask(Task):
                         )
                         active_sentence = False
 
-                    try:
-                        result_json = json.loads(result)
-                        send_message(self.client_sid, "message", result_json)
-                        logging.info(f"Transcription result: {result_json}")
-                    except json.JSONDecodeError:
-                        logging.error(f"Failed to decode JSON: {result}")
+                    if result:
+                        try:
+                            result_json = json.loads(result)
+                            send_message(self.client_sid, "message", result_json)
+                            logging.info(f"Transcription result: {result_json}")
+                        except json.JSONDecodeError:
+                            logging.error(f"Failed to decode JSON: {result}")
 
                 send_message(self.client_sid, "stopped")
                 await websocket.send('{"eof" : 1}')
@@ -138,6 +140,16 @@ def process_result(data, start, end):
     # Преобразуем строку в словарь
     parsed_data = json.loads(data)
 
+    # Отправляем текст на пунктуацию, если в данных есть "text"
+    if "text" in parsed_data:
+        if not parsed_data["text"]:
+            return None
+        text = parsed_data["text"]
+        lang = 'ru'
+        punctuated_text = punctuate(text, lang)
+        if punctuated_text:
+            parsed_data["text"] = punctuated_text
+
     # Удаляем ключ "result"
     if "result" in parsed_data:
         del parsed_data["result"]
@@ -151,3 +163,18 @@ def process_result(data, start, end):
 
     # Выводим результат
     return json_string
+
+
+def punctuate(text:str, lang:str='ru') -> str | None:
+    payload = {
+        "text": text,
+        "language": lang
+    }
+    try:
+        response = requests.post("http://localhost:8001/punctuation/punctuate", json=payload)
+        response.raise_for_status()  # Вызывает ошибку, если ответ с кодом ошибки
+        punctuated_text = response.json().get("punctuated_text")
+        return punctuated_text
+    except requests.RequestException as e:
+        print(f"Ошибка при запросе к сервису пунктуации: {e}")
+        return None

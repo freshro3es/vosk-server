@@ -8,6 +8,5 @@ scipy
 python-dotenv
 ffmpeg==1.4
 ffprobe==0.5
-onnxruntime
-silero-vad
 soundfile
+requests

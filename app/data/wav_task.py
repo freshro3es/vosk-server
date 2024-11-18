@@ -8,9 +8,10 @@ import websockets
 import os
 import asyncio
 import json
+import requests
 import traceback
 
-from app.libraries.vad import voice_prob, load_model
+# from app.libraries.vad import voice_prob, load_model
 
 import numpy as np
 
@@ -42,7 +43,7 @@ class WAVTask(Task):
             logging.info(
                 f"def transcribe: Task ID in transcribe func is {self.task_id} and Client ID is {self.client_sid}"
             )
-            vad_model = load_model()
+            # vad_model = load_model()
             vad_target_samples = 512
             async with websockets.connect(uri) as websocket:
                 self.audiofile = wave.open(self.file_path, "rb")
@@ -71,13 +72,13 @@ class WAVTask(Task):
                     if self.audiofile.getnchannels() == 2:
                         data = self.stereo_to_mono(data)
 
-                    # Скармливаем данные VAD детектору
-                    if voice_prob(vad_model, data, original_rate) < 0.1:
-                        logging.info(
-                            f"Buffer size is {buffer_size}, it's {buffer_size/512} packages. Audio package is not sended"
-                        )
-                        send_message(self.client_sid, "stopped")
-                        continue
+                    # # Скармливаем данные VAD детектору
+                    # if voice_prob(vad_model, data, original_rate) < 0.1:
+                    #     logging.info(
+                    #         f"Buffer size is {buffer_size}, it's {buffer_size/512} packages. Audio package is not sended"
+                    #     )
+                    #     send_message(self.client_sid, "stopped")
+                    #     continue
 
                     send_message(self.client_sid, "working")
                     await websocket.send(data)
@@ -104,7 +105,7 @@ class WAVTask(Task):
                 send_message(self.client_sid, "stopped")
                 send_message(self.client_sid, "transcription_finished")
                 logging.info("def transcribe: Transcription finished")
-                del vad_model
+                # del vad_model
 
         self.log_file_params(self.file_path)
         self.set_status("processing")
@@ -139,6 +140,18 @@ class WAVTask(Task):
         if not parsed_data["text"]:
             return None
 
+        # Отправляем текст на пунктуацию, если в данных есть "text"
+        if "text" in parsed_data:
+            if not parsed_data["text"]:
+                return None
+            text = parsed_data["text"]
+            lang = 'ru'
+            punctuated_text = self.punctuate(text, lang)
+            if punctuated_text:
+                parsed_data["text"] = punctuated_text
+
+
+
         # Удаляем ключ "result"
         if "result" in parsed_data:
             del parsed_data["result"]
@@ -154,4 +167,18 @@ class WAVTask(Task):
 
         # Выводим результат
         return json_string
+    
+    def punctuate(self, text:str, lang:str='ru') -> str | None:
+        payload = {
+            "text": text,
+            "language": lang
+        }
+        try:
+            response = requests.post("http://silero-api-container:8001/punctuation/punctuate", json=payload)
+            response.raise_for_status()  # Вызывает ошибку, если ответ с кодом ошибки
+            punctuated_text = response.json().get("punctuated_text")
+            return punctuated_text
+        except requests.RequestException as e:
+            print(f"Ошибка при запросе к сервису пунктуации: {e}")
+            return None
 

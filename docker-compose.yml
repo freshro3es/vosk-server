@@ -39,6 +39,17 @@ services:
     networks:
       - app-network
 
+  # Silero API сервер
+  silero-api:
+    image: silero-api  # Указываем имя собранного образа
+    container_name: silero-api-container
+    ports:
+      - "8001:8001"  # Пробрасываем порт
+    networks:
+      - app-network
+    depends_on:
+      - flask-server  # Убедимся, что flask-server запущен перед silero-api
+
 networks:
   app-network:
     driver: bridge
